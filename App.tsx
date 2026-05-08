@@ -25,13 +25,21 @@ export default function App() {
           initialRouteName="Splash"
           screenOptions={{ headerShown: false }}
         >
+          {/* S1 */}
           <Stack.Screen name="Splash"           component={SplashScreen} />
+          {/* S1_1a / S1_1b */}
           <Stack.Screen name="SavedList"        component={SavedListScreen} />
+          {/* S2 */}
           <Stack.Screen name="Home"             component={HomeScreen} />
+          {/* S3a */}
           <Stack.Screen name="TravelStyle"      component={TravelStyleScreen} />
+          {/* S3b */}
           <Stack.Screen name="DetailCondition"  component={DetailConditionScreen} />
+          {/* S4 */}
           <Stack.Screen name="SpotSelect"       component={SpotSelectScreen} />
+          {/* S5 */}
           <Stack.Screen name="Timeline"         component={TimelineScreen} />
+          {/* S5_1 */}
           <Stack.Screen name="BusinessHours"    component={BusinessHoursScreen} />
         </Stack.Navigator>
       </NavigationContainer>
