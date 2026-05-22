@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,15 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Spot, TripSchedule } from '../types';
 import { jejuSpots } from '../data/jejuSpots';
+import { fetchJejuSpotsByCategory } from '../api/tourApi';
 import { calcTripDays } from '../algorithms/timeBudget';
 import { nearestNeighbor } from '../algorithms/nearestNeighbor';
 import { colors, spacing, radius, shadows } from '../constants/theme';
@@ -60,14 +63,32 @@ export default function SpotSelectScreen() {
   const [accommodation, setAccommodation] = useState<TripSchedule['accommodation']>('airport');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Spot['category'] | 'all'>('all');
+  const [spots, setSpots] = useState<Spot[]>(jejuSpots);
+  const [loading, setLoading] = useState(false);
+
+  const loadSpots = useCallback(async (category: typeof filter) => {
+    setLoading(true);
+    try {
+      const data = await fetchJejuSpotsByCategory(category);
+      if (data.length > 0) setSpots(data);
+    } catch (e) {
+      console.error('[SpotSelect] API 실패:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSpots(filter);
+  }, [filter, loadSpots]);
 
   const filtered = useMemo(() =>
-    jejuSpots.filter(s => {
+    spots.filter(s => {
       const matchCat = filter === 'all' || s.category === filter;
       const matchQ   = !query || s.name.includes(query) || s.tags.some(t => t.includes(query));
       return matchCat && matchQ;
     }),
-  [filter, query]);
+  [spots, filter, query]);
 
   const toggleSpot = (spot: Spot) =>
     setSelected(prev =>
@@ -119,7 +140,11 @@ export default function SpotSelectScreen() {
           </View>
         )}
         <View style={styles.spotImageArea}>
-          <Text style={styles.spotEmoji}>{item.emoji}</Text>
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.spotImage} />
+          ) : (
+            <Text style={styles.spotEmoji}>{item.emoji}</Text>
+          )}
         </View>
         <View style={styles.spotInfo}>
           <Text style={styles.spotName} numberOfLines={1}>{item.name}</Text>
@@ -168,15 +193,21 @@ export default function SpotSelectScreen() {
       </View>
 
       {/* 명소 그리드 */}
-      <FlatList
-        data={filtered}
-        keyExtractor={item => item.id}
-        renderItem={renderSpot}
-        numColumns={2}
-        columnWrapperStyle={styles.gridRow}
-        contentContainerStyle={styles.grid}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={item => item.id}
+          renderItem={renderSpot}
+          numColumns={2}
+          columnWrapperStyle={styles.gridRow}
+          contentContainerStyle={styles.grid}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* 하단 패널 */}
       <View style={styles.bottomPanel}>
@@ -341,4 +372,6 @@ const styles = StyleSheet.create({
   },
   optimizeBtnDisabled: { opacity: 0.4 },
   optimizeBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  spotImage: { width: '100%', height: 80 },
 });
