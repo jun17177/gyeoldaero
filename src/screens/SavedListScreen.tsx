@@ -7,6 +7,7 @@ import {
   StyleSheet,
   StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -17,15 +18,13 @@ import { colors, spacing, radius, shadows } from '../constants/theme';
 
 type Nav = StackNavigationProp<RootStackParamList, 'SavedList'>;
 
-const EMOJIS = ['🌊', '⛰️', '🌸', '🌴', '🍊', '🌙', '🏖️', '🌿'];
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
-const THEME_EMOJI: Record<string, string> = {
-  healing: '🌿', activity: '🏄', food: '🍴',
-  culture: '🏛', photo: '📸', night: '🌙',
-};
-const SEASON_EMOJI: Record<string, string> = {
-  spring: '🌸', summer: '☀️', fall: '🍂', winter: '❄️',
-};
+const THUMB_ICONS: IoniconsName[] = [
+  'compass-outline', 'map-outline', 'airplane-outline', 'partly-sunny-outline',
+  'leaf-outline', 'moon-outline', 'camera-outline', 'restaurant-outline',
+];
+
 const THEME_LABEL: Record<string, string> = {
   healing: '힐링', activity: '액티비티', food: '미식',
   culture: '문화탐방', photo: '사진', night: '야경',
@@ -55,18 +54,16 @@ export default function SavedListScreen() {
   );
 
   const renderCard = ({ item, index }: { item: TripSchedule; index: number }) => {
-    const emoji = EMOJIS[index % EMOJIS.length];
+    const thumbIcon = THUMB_ICONS[index % THUMB_ICONS.length];
     const date = new Date(item.createdAt).toLocaleDateString('ko-KR', {
       year: 'numeric', month: '2-digit', day: '2-digit',
     }).replace(/\. /g, '.').replace(/\.$/, '');
 
     const tags = [
-      ...item.settings.themes.map(t => `${THEME_EMOJI[t] ?? ''} ${THEME_LABEL[t] ?? t}`),
-      `${SEASON_EMOJI[item.settings.season] ?? ''} ${
-        item.settings.season === 'spring' ? '봄' :
-        item.settings.season === 'summer' ? '여름' :
-        item.settings.season === 'fall'   ? '가을' : '겨울'
-      }`,
+      ...item.settings.themes.map(t => THEME_LABEL[t] ?? t),
+      item.settings.season === 'spring' ? '봄' :
+      item.settings.season === 'summer' ? '여름' :
+      item.settings.season === 'fall'   ? '가을' : '겨울',
     ].slice(0, 3);
 
     return (
@@ -77,7 +74,7 @@ export default function SavedListScreen() {
       >
         <View style={styles.thumbnailWrap}>
           <View style={styles.thumbnail}>
-            <Text style={styles.thumbnailEmoji}>{emoji}</Text>
+            <Ionicons name={thumbIcon} size={26} color={colors.primary} />
           </View>
           <View style={styles.dayBadge}>
             <Text style={styles.dayBadgeText}>{formatDays(item.days)}</Text>
@@ -173,7 +170,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  thumbnailEmoji: { fontSize: 26 },
   dayBadge: {
     position: 'absolute',
     bottom: -5,

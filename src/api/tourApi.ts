@@ -22,12 +22,13 @@ interface TourItem {
 function mapCategory(typeId: string): Spot['category'] {
   if (typeId === '14') return 'culture';
   if (typeId === '39') return 'food';
+  if (typeId === '28') return 'activity';
   return 'nature';
 }
 
 function categoryEmoji(cat: Spot['category']): string {
   const map: Record<Spot['category'], string> = {
-    nature: '🏝️', culture: '🏛️', food: '🍴', photo: '📸', night: '🌙',
+    nature: '🏝️', activity: '🏄', culture: '🏛️', food: '🍴', photo: '📸', night: '🌙',
   };
   return map[cat];
 }
@@ -94,12 +95,13 @@ export async function fetchJejuSpotsByCategory(
   category: 'all' | Spot['category'],
 ): Promise<Spot[]> {
   const typeMap: Record<string, string[]> = {
-    all:     ['12', '14', '39'],
-    nature:  ['12', '28'],
-    culture: ['14'],
-    food:    ['39'],
-    photo:   ['12'],
-    night:   ['12'],
+    all:      ['12', '14', '28', '39'],
+    nature:   ['12'],
+    activity: ['28'],
+    culture:  ['14'],
+    food:     ['39'],
+    photo:    ['12'],
+    night:    ['12'],
   };
   const results = await Promise.all(
     (typeMap[category] ?? ['12']).map(id => fetchByTypeId(id)),

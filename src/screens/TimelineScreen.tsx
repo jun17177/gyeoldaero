@@ -9,6 +9,7 @@ import {
   StyleSheet,
   StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -20,16 +21,19 @@ import { colors, spacing, radius } from '../constants/theme';
 type Nav = StackNavigationProp<RootStackParamList, 'Timeline'>;
 type Route = RouteProp<RootStackParamList, 'Timeline'>;
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  nature:  '🏔',
-  culture: '🏛',
-  food:    '🍽',
-  photo:   '📸',
-  night:   '🌙',
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+const CATEGORY_ICON: Record<string, IoniconsName> = {
+  nature:   'leaf-outline',
+  activity: 'bicycle-outline',
+  culture:  'business-outline',
+  food:     'restaurant-outline',
+  photo:    'camera-outline',
+  night:    'moon-outline',
 };
 
 const WEATHER_LABEL: Record<string, string> = {
-  sunny: '☀ 맑음', cloudy: '☁ 흐림', rainy: '🌧 비', snowy: '❄ 눈',
+  sunny: '맑음', cloudy: '흐림', rainy: '비', snowy: '눈',
 };
 
 const THEME_LABEL: Record<string, string> = {
@@ -38,15 +42,17 @@ const THEME_LABEL: Record<string, string> = {
 };
 
 const ACCOM_LABEL: Record<string, string> = {
-  airport: '공항 주변', jejucity: '제주시', seogwipo: '서귀포',
-  east: '동쪽', west: '서쪽', custom: '직접입력',
+  jejucity: '제주시', aewol: '애월', hallim: '한림',
+  jungmun: '중문', seogwipo: '서귀포', seongsan: '성산', custom: '직접입력',
 };
 
-function ItemEmoji({ type, spotCategory }: { type: TimelineItem['type']; spotCategory?: string }) {
-  if (type === 'accommodation') return <Text style={styles.itemEmoji}>🏨</Text>;
-  if (type === 'meal')          return <Text style={styles.itemEmoji}>🍽</Text>;
-  if (type === 'move')          return <Text style={styles.itemEmoji}>🚗</Text>;
-  return <Text style={styles.itemEmoji}>{CATEGORY_EMOJI[spotCategory ?? 'nature'] ?? '📍'}</Text>;
+function ItemIcon({ type, spotCategory }: { type: TimelineItem['type']; spotCategory?: string }) {
+  const iconName: IoniconsName =
+    type === 'accommodation' ? 'bed-outline' :
+    type === 'meal'          ? 'restaurant-outline' :
+    type === 'move'          ? 'car-outline' :
+    (CATEGORY_ICON[spotCategory ?? 'nature'] ?? 'location-outline');
+  return <Ionicons name={iconName} size={20} color={colors.textMuted} style={styles.itemIcon} />;
 }
 
 export default function TimelineScreen() {
@@ -83,7 +89,7 @@ export default function TimelineScreen() {
         </View>
         <View style={styles.itemContent}>
           <View style={styles.itemMain}>
-            <ItemEmoji type={item.type} spotCategory={spotCategory} />
+            <ItemIcon type={item.type} spotCategory={spotCategory} />
             <View style={styles.itemText}>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemMeta}>
@@ -284,7 +290,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   itemMain: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
-  itemEmoji: { fontSize: 20, marginTop: -2 },
+  itemIcon: { marginTop: 0 },
   itemText: { flex: 1 },
   itemName: { fontSize: 14, fontWeight: '700', color: colors.text, lineHeight: 20 },
   itemMeta: { fontSize: 11, color: colors.textMuted, marginTop: 1 },

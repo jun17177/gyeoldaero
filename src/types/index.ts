@@ -1,7 +1,7 @@
 export interface Spot {
   id: string;
   name: string;
-  category: 'nature' | 'culture' | 'food' | 'photo' | 'night';
+  category: 'nature' | 'activity' | 'culture' | 'food' | 'photo' | 'night';
   lat: number;
   lon: number;
   durationMinutes: number;
@@ -17,7 +17,7 @@ export interface TripSchedule {
   createdAt: string;
   days: number;
   spots: Spot[];
-  accommodation: 'airport' | 'jejucity' | 'seogwipo' | 'east' | 'west' | 'custom';
+  accommodation: 'jejucity' | 'aewol' | 'hallim' | 'jungmun' | 'seogwipo' | 'seongsan' | 'custom';
   tags: string[];
   settings: TripSettings;
   dayPlans?: DayPlan[];

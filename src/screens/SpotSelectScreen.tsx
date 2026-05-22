@@ -11,6 +11,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -24,29 +25,86 @@ import { colors, spacing, radius, shadows } from '../constants/theme';
 type Nav = StackNavigationProp<RootStackParamList, 'SpotSelect'>;
 type Route = RouteProp<RootStackParamList, 'SpotSelect'>;
 
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+const CATEGORY_ICON: Record<string, IoniconsName> = {
+  nature:   'leaf-outline',
+  activity: 'bicycle-outline',
+  culture:  'business-outline',
+  food:     'restaurant-outline',
+  photo:    'camera-outline',
+  night:    'moon-outline',
+};
+
 const ACCOM_COORDS: Record<string, { lat: number; lon: number }> = {
-  airport:  { lat: 33.5074, lon: 126.4927 },
-  jejucity: { lat: 33.4996, lon: 126.5312 },
-  seogwipo: { lat: 33.2541, lon: 126.5600 },
-  east:     { lat: 33.4390, lon: 126.9229 },
-  west:     { lat: 33.3925, lon: 126.2376 },
+  jejucity: { lat: 33.4996, lon: 126.5312 }, // 제주시 (공항 포함)
+  aewol:    { lat: 33.4600, lon: 126.3100 }, // 애월
+  hallim:   { lat: 33.3925, lon: 126.2376 }, // 한림 (서쪽 해안)
+  jungmun:  { lat: 33.2453, lon: 126.4126 }, // 중문 리조트
+  seogwipo: { lat: 33.2541, lon: 126.5600 }, // 서귀포 시내
+  seongsan: { lat: 33.4390, lon: 126.9229 }, // 성산 (동쪽)
   custom:   { lat: 33.4996, lon: 126.5312 },
 };
 
 const ACCOM_OPTIONS: { id: TripSchedule['accommodation']; label: string }[] = [
-  { id: 'airport',  label: '공항 주변' },
   { id: 'jejucity', label: '제주시' },
+  { id: 'aewol',    label: '애월' },
+  { id: 'hallim',   label: '한림' },
+  { id: 'jungmun',  label: '중문' },
   { id: 'seogwipo', label: '서귀포' },
-  { id: 'east',     label: '동쪽' },
-  { id: 'west',     label: '서쪽' },
+  { id: 'seongsan', label: '성산' },
 ];
 
-const FILTER_OPTIONS: { id: Spot['category'] | 'all'; label: string }[] = [
-  { id: 'all',     label: '전체' },
-  { id: 'nature',  label: '자연' },
-  { id: 'culture', label: '문화' },
-  { id: 'food',    label: '미식' },
+const THEME_TO_CATEGORY: Record<string, Spot['category']> = {
+  healing:  'nature',
+  activity: 'activity',
+  food:     'food',
+  culture:  'culture',
+  photo:    'photo',
+  night:    'night',
+};
+
+const ALL_FILTER_OPTIONS: { id: Spot['category'] | 'all'; label: string }[] = [
+  { id: 'all',      label: '전체' },
+  { id: 'nature',   label: '자연' },
+  { id: 'activity', label: '액티비티' },
+  { id: 'culture',  label: '문화' },
+  { id: 'food',     label: '미식' },
+  { id: 'photo',    label: '사진·감성' },
+  { id: 'night',    label: '야경' },
 ];
+
+const SEASON_WEATHER_FACTOR: Record<string, number> = {
+  spring: 1.0,
+  summer: 1.1,  // 더위로 이동·활동 시간 증가
+  fall:   1.0,
+  winter: 1.15, // 추위·방한 준비로 이동 시간 증가
+};
+
+// 계절에 맞는 명소에 높은 점수 부여 → 정렬에 사용
+function seasonScore(spot: Spot, season: string): number {
+  const tags = spot.tags;
+  switch (season) {
+    case 'winter':
+      if (['culture', 'food'].includes(spot.category)) return 2;
+      if (tags.some(t => ['실내', '수족관', '박물관', '시장', '체험'].includes(t))) return 2;
+      if (tags.some(t => ['해변', '수영', '스노클링', '서핑'].includes(t))) return 0;
+      return 1;
+    case 'summer':
+      if (tags.some(t => ['해변', '수영', '서핑', '스쿠버', '스노클링', '에메랄드'].includes(t))) return 2;
+      if (['food'].includes(spot.category)) return 1;
+      return 1;
+    case 'spring':
+      if (tags.some(t => ['꽃', '정원', '동백', '녹차', '벚꽃', '봄'].includes(t))) return 2;
+      if (tags.some(t => ['산림욕', '숲', '힐링', '피톤치드'].includes(t))) return 2;
+      return 1;
+    case 'fall':
+      if (tags.some(t => ['트레킹', '등산', '산림욕', '숲', '단풍'].includes(t))) return 2;
+      return 1;
+    default:
+      return 1;
+  }
+}
 
 function formatDays(days: number) {
   if (days === 0) return '—';
@@ -59,35 +117,55 @@ export default function SpotSelectScreen() {
   const route = useRoute<Route>();
   const { settings } = route.params;
 
+  // 선택한 테마 → 허용 카테고리
+  const allowedCategories = settings.themes
+    .map(t => THEME_TO_CATEGORY[t])
+    .filter((c): c is Spot['category'] => !!c);
+
+  // 필터 탭: 선택된 테마에 해당하는 것만 노출
+  const visibleFilters = ALL_FILTER_OPTIONS.filter(
+    f => f.id === 'all' || allowedCategories.includes(f.id as Spot['category'])
+  );
+
   const [selected, setSelected] = useState<Spot[]>([]);
-  const [accommodation, setAccommodation] = useState<TripSchedule['accommodation']>('airport');
+  const [accommodation, setAccommodation] = useState<TripSchedule['accommodation']>('jejucity');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Spot['category'] | 'all'>('all');
-  const [spots, setSpots] = useState<Spot[]>(jejuSpots);
+  const [spots, setSpots] = useState<Spot[]>(
+    jejuSpots.filter(s => allowedCategories.includes(s.category))
+  );
   const [loading, setLoading] = useState(false);
 
-  const loadSpots = useCallback(async (category: typeof filter) => {
+  const loadSpots = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchJejuSpotsByCategory(category);
-      if (data.length > 0) setSpots(data);
+      const results = await Promise.all(
+        allowedCategories.map(cat => fetchJejuSpotsByCategory(cat))
+      );
+      const combined = results.flat();
+      if (combined.length > 0) setSpots(combined);
     } catch (e) {
       console.error('[SpotSelect] API 실패:', e);
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    loadSpots(filter);
-  }, [filter, loadSpots]);
+    loadSpots();
+  }, [loadSpots]);
 
   const filtered = useMemo(() =>
-    spots.filter(s => {
-      const matchCat = filter === 'all' || s.category === filter;
-      const matchQ   = !query || s.name.includes(query) || s.tags.some(t => t.includes(query));
-      return matchCat && matchQ;
-    }),
+    spots
+      .filter(s => {
+        const inTheme  = allowedCategories.includes(s.category);
+        const matchCat = filter === 'all' ? inTheme : s.category === filter;
+        const matchQ   = !query || s.name.includes(query) || s.tags.some(t => t.includes(query));
+        return matchCat && matchQ;
+      })
+      .sort((a, b) => seasonScore(b, settings.season) - seasonScore(a, settings.season)),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   [spots, filter, query]);
 
   const toggleSpot = (spot: Spot) =>
@@ -106,6 +184,7 @@ export default function SpotSelectScreen() {
       firstDayArrival: settings.firstDayArrival,
       lastDayDeparture: settings.lastDayDeparture,
       luggage: settings.luggage,
+      weatherFactor: SEASON_WEATHER_FACTOR[settings.season] ?? 1.0,
     });
   }, [selected, settings]);
 
@@ -136,23 +215,24 @@ export default function SpotSelectScreen() {
       >
         {isSelected && (
           <View style={styles.checkBadge}>
-            <Text style={styles.checkIcon}>✓</Text>
+            <Ionicons name="checkmark" size={13} color="#fff" />
           </View>
         )}
         <View style={styles.spotImageArea}>
           {item.imageUrl ? (
             <Image source={{ uri: item.imageUrl }} style={styles.spotImage} />
           ) : (
-            <Text style={styles.spotEmoji}>{item.emoji}</Text>
+            <Ionicons name={CATEGORY_ICON[item.category] ?? 'location-outline'} size={38} color={colors.primary} />
           )}
         </View>
         <View style={styles.spotInfo}>
           <Text style={styles.spotName} numberOfLines={1}>{item.name}</Text>
           <Text style={styles.spotMeta}>
-            {item.category === 'nature'  ? '자연' :
-             item.category === 'culture' ? '문화' :
-             item.category === 'food'    ? '미식' :
-             item.category === 'photo'   ? '사진' : '야경'} · {item.durationMinutes}분
+            {item.category === 'nature'   ? '자연' :
+             item.category === 'activity' ? '액티비티' :
+             item.category === 'culture'  ? '문화' :
+             item.category === 'food'     ? '미식' :
+             item.category === 'photo'    ? '사진' : '야경'} · {item.durationMinutes}분
           </Text>
           {isSelected && <Text style={styles.selectedLabel}>✓ 담김</Text>}
         </View>
@@ -166,7 +246,7 @@ export default function SpotSelectScreen() {
 
       {/* 검색창 */}
       <View style={styles.searchBar}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <Ionicons name="search-outline" size={15} color={colors.textMuted} style={{ marginRight: spacing.sm }} />
         <TextInput
           style={styles.searchInput}
           placeholder="명소 이름 검색 (예: 한라산, 성산...)"
@@ -178,7 +258,7 @@ export default function SpotSelectScreen() {
 
       {/* 필터 칩 */}
       <View style={styles.filterRow}>
-        {FILTER_OPTIONS.map(f => (
+        {visibleFilters.map(f => (
           <TouchableOpacity
             key={f.id}
             style={[styles.filterChip, filter === f.id && styles.filterChipActive]}
@@ -266,7 +346,6 @@ const styles = StyleSheet.create({
     height: 44,
     marginBottom: spacing.sm,
   },
-  searchIcon: { fontSize: 15, marginRight: spacing.sm },
   searchInput: { flex: 1, fontSize: 13, color: colors.text },
   filterRow: {
     flexDirection: 'row',
@@ -313,14 +392,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  checkIcon: { color: '#fff', fontSize: 12, fontWeight: '700' },
   spotImageArea: {
     height: 80,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  spotEmoji: { fontSize: 38 },
   spotInfo: { padding: spacing.sm, paddingTop: 6 },
   spotName: { fontSize: 12, fontWeight: '700', color: colors.text, marginBottom: 2 },
   spotMeta: { fontSize: 10, color: colors.textMuted },

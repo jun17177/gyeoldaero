@@ -9,6 +9,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -107,7 +108,7 @@ function TimePickerModal({
                 <Text style={[styles.modalItemText, selected === item.value && styles.modalItemTextActive]}>
                   {item.label}
                 </Text>
-                {selected === item.value && <Text style={styles.modalCheck}>✓</Text>}
+                {selected === item.value && <Ionicons name="checkmark" size={16} color={colors.primary} />}
               </TouchableOpacity>
             )}
           />
@@ -172,7 +173,7 @@ export default function DetailConditionScreen() {
 
         {/* 활동 시간대 */}
         <View style={styles.section}>
-          <Text style={styles.sectionIcon}>⏰</Text>
+          <Ionicons name="time-outline" size={16} color={colors.text} />
           <Text style={styles.sectionLabel}>활동 시간대</Text>
         </View>
         <View style={styles.sliderCard}>
@@ -187,13 +188,13 @@ export default function DetailConditionScreen() {
         {/* 도착 / 출발 */}
         <View style={styles.twoCol}>
           <TouchableOpacity style={styles.timeCard} onPress={() => setArrivalModal(true)} activeOpacity={0.8}>
-            <Text style={styles.timeCardIcon}>🛬</Text>
+            <Ionicons name="arrow-down-circle-outline" size={22} color={colors.primary} style={styles.timeCardIcon} />
             <Text style={styles.timeCardTitle}>첫날 도착 시간</Text>
             <Text style={styles.timeCardSub}>이 시간부터 활동 시작</Text>
             <Text style={styles.timeCardValue}>{formatTimeLabel(arrival)}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.timeCard} onPress={() => setDepartureModal(true)} activeOpacity={0.8}>
-            <Text style={styles.timeCardIcon}>🛫</Text>
+            <Ionicons name="arrow-up-circle-outline" size={22} color={colors.primary} style={styles.timeCardIcon} />
             <Text style={styles.timeCardTitle}>마지막날 출발</Text>
             <Text style={styles.timeCardSub}>이 시간까지만 활동</Text>
             <Text style={styles.timeCardValue}>{formatTimeLabel(departure)}</Text>
@@ -201,8 +202,9 @@ export default function DetailConditionScreen() {
         </View>
 
         <View style={styles.hintBox}>
+          <Ionicons name="timer-outline" size={14} color={colors.primary} />
           <Text style={styles.hintText}>
-            ⏱ 첫날 가용시간 {firstDayHours}시간
+            {' '}첫날 가용시간 {firstDayHours}시간
             {arrival !== undefined ? ` (${formatTimeLabel(arrival)} 도착 기준)` : ''}
           </Text>
         </View>
@@ -317,7 +319,6 @@ const styles = StyleSheet.create({
   dashActive: { backgroundColor: colors.primary, width: 28 },
   scroll: { paddingHorizontal: spacing.xl },
   section: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm, marginTop: spacing.sm },
-  sectionIcon: { fontSize: 14 },
   sectionLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
   sliderCard: {
     backgroundColor: colors.surface,
@@ -337,7 +338,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.md,
   },
-  timeCardIcon: { fontSize: 20, marginBottom: 4 },
+  timeCardIcon: { marginBottom: 4 },
   timeCardTitle: { fontSize: 12, fontWeight: '600', color: colors.text, marginBottom: 2 },
   timeCardSub: { fontSize: 10, color: colors.textMuted, marginBottom: 8 },
   timeCardValue: { fontSize: 16, fontWeight: '700', color: colors.primary },
@@ -346,6 +347,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
     marginBottom: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   hintText: { fontSize: 12, color: colors.primary, fontWeight: '500' },
   counterBlock: {
@@ -434,5 +437,4 @@ const styles = StyleSheet.create({
   modalItemActive: { backgroundColor: colors.primaryLight },
   modalItemText: { fontSize: 15, color: colors.text },
   modalItemTextActive: { color: colors.primary, fontWeight: '700' },
-  modalCheck: { color: colors.primary, fontWeight: '700', fontSize: 16 },
 });

@@ -10,31 +10,34 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, TripSettings } from '../types';
 import { colors, spacing, radius } from '../constants/theme';
 
 type Nav = StackNavigationProp<RootStackParamList, 'TravelStyle'>;
 type Route = RouteProp<RootStackParamList, 'TravelStyle'>;
 
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
 const THEMES: {
   id: TripSettings['themes'][number];
   label: string;
   desc: string;
-  emoji: string;
+  icon: IoniconsName;
 }[] = [
-  { id: 'healing',  label: '힐링',      desc: '느긋하게, 여유롭게',   emoji: '🌿' },
-  { id: 'activity', label: '액티비티',  desc: '활동적인 체험',        emoji: '🏄' },
-  { id: 'food',     label: '미식',      desc: '맛집·시장·카페',       emoji: '🍜' },
-  { id: 'culture',  label: '문화탐방',  desc: '역사·박물관',          emoji: '🏛' },
-  { id: 'photo',    label: '사진·감성', desc: '인생샷·뷰맛집',        emoji: '📸' },
-  { id: 'night',    label: '야경·야간', desc: '야시장·야경 중심',      emoji: '🌙' },
+  { id: 'healing',  label: '힐링',      desc: '느긋하게, 여유롭게',   icon: 'leaf-outline' },
+  { id: 'activity', label: '액티비티',  desc: '활동적인 체험',        icon: 'bicycle-outline' },
+  { id: 'food',     label: '미식',      desc: '맛집·시장·카페',       icon: 'restaurant-outline' },
+  { id: 'culture',  label: '문화탐방',  desc: '역사·박물관',          icon: 'library-outline' },
+  { id: 'photo',    label: '사진·감성', desc: '인생샷·뷰맛집',        icon: 'camera-outline' },
+  { id: 'night',    label: '야경·야간', desc: '야시장·야경 중심',      icon: 'moon-outline' },
 ];
 
-const SEASONS: { id: TripSettings['season']; label: string; emoji: string }[] = [
-  { id: 'spring', label: '봄',   emoji: '🌸' },
-  { id: 'summer', label: '여름', emoji: '☀' },
-  { id: 'fall',   label: '가을', emoji: '🍂' },
-  { id: 'winter', label: '겨울', emoji: '❄' },
+const SEASONS: { id: TripSettings['season']; label: string; icon: IoniconsName }[] = [
+  { id: 'spring', label: '봄',   icon: 'flower-outline' },
+  { id: 'summer', label: '여름', icon: 'sunny-outline' },
+  { id: 'fall',   label: '가을', icon: 'partly-sunny-outline' },
+  { id: 'winter', label: '겨울', icon: 'snow-outline' },
 ];
 
 function StepDots({ active }: { active: 1 | 2 }) {
@@ -96,7 +99,7 @@ export default function TravelStyleScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.iconCircle, selected && styles.iconCircleSelected]}>
-                  <Text style={styles.themeEmoji}>{t.emoji}</Text>
+                  <Ionicons name={t.icon} size={26} color={selected ? '#fff' : colors.primary} />
                 </View>
                 <Text style={[styles.themeLabel, selected && styles.themeLabelSelected]}>
                   {t.label}
@@ -121,7 +124,7 @@ export default function TravelStyleScreen() {
               onPress={() => setSeason(s.id)}
               activeOpacity={0.8}
             >
-              <Text style={styles.segEmoji}>{s.emoji}</Text>
+              <Ionicons name={s.icon} size={17} color={season === s.id ? '#fff' : colors.primary} />
               <Text style={[styles.segLabel, season === s.id && styles.segLabelActive]}>
                 {s.label}
               </Text>
@@ -210,7 +213,6 @@ const styles = StyleSheet.create({
   iconCircleSelected: {
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  themeEmoji: { fontSize: 24 },
   themeLabel: {
     fontSize: 13,
     fontWeight: '700',
@@ -244,7 +246,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  segEmoji: { fontSize: 17 },
   segLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
   segLabelActive: { color: '#fff' },
   bottomBar: {

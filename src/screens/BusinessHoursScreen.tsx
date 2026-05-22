@@ -8,6 +8,7 @@ import {
   StyleSheet,
   StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -28,7 +29,7 @@ function LinkButton({ url }: { url: string }) {
       onPress={() => Linking.openURL(url)}
       activeOpacity={0.75}
     >
-      <Text style={styles.linkIcon}>🔗</Text>
+      <Ionicons name="link-outline" size={16} color="#fff" />
     </TouchableOpacity>
   );
 }
@@ -70,7 +71,7 @@ export default function BusinessHoursScreen() {
 
       {/* 헤더 */}
       <View style={styles.heroHeader}>
-        <Text style={styles.heroTitle}>바로가기 🔗</Text>
+        <Text style={styles.heroTitle}>바로가기</Text>
         <Text style={styles.heroDesc}>
           정확한 위치나 영업중을 확인하려면{'\n'}아래 링크 버튼을 눌러주세요
         </Text>
@@ -144,7 +145,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: spacing.sm,
   },
-  linkIcon: { fontSize: 16 },
   bottomBar: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
