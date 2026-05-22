@@ -30,13 +30,6 @@ const THEMES: {
   { id: 'night',    label: '야경·야간', desc: '야시장·야경 중심',      emoji: '🌙' },
 ];
 
-const WEATHERS: { id: TripSettings['weather']; label: string; emoji: string }[] = [
-  { id: 'sunny',  label: '맑음', emoji: '☀' },
-  { id: 'cloudy', label: '흐림', emoji: '☁' },
-  { id: 'rainy',  label: '비',   emoji: '🌧' },
-  { id: 'snowy',  label: '눈',   emoji: '❄' },
-];
-
 const SEASONS: { id: TripSettings['season']; label: string; emoji: string }[] = [
   { id: 'spring', label: '봄',   emoji: '🌸' },
   { id: 'summer', label: '여름', emoji: '☀' },
@@ -58,7 +51,6 @@ export default function TravelStyleScreen() {
   useRoute<Route>();
 
   const [themes, setThemes] = useState<TripSettings['themes']>([]);
-  const [weather, setWeather] = useState<TripSettings['weather']>('sunny');
   const [season, setSeason]   = useState<TripSettings['season']>('spring');
 
   const toggleTheme = (id: TripSettings['themes'][number]) =>
@@ -68,7 +60,7 @@ export default function TravelStyleScreen() {
     navigation.navigate('DetailCondition', {
       settings: {
         themes: themes.length > 0 ? themes : ['healing'],
-        weather,
+        weather: 'sunny',
         season,
       },
     });
@@ -119,26 +111,8 @@ export default function TravelStyleScreen() {
 
         <View style={styles.divider} />
 
-        {/* 날씨 */}
-        <Text style={styles.sectionLabel}>날씨</Text>
-        <View style={styles.segRow}>
-          {WEATHERS.map(w => (
-            <TouchableOpacity
-              key={w.id}
-              style={[styles.segBtn, weather === w.id && styles.segBtnActive]}
-              onPress={() => setWeather(w.id)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.segEmoji}>{w.emoji}</Text>
-              <Text style={[styles.segLabel, weather === w.id && styles.segLabelActive]}>
-                {w.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
         {/* 계절 */}
-        <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>계절</Text>
+        <Text style={styles.sectionLabel}>계절</Text>
         <View style={styles.segRow}>
           {SEASONS.map(s => (
             <TouchableOpacity
