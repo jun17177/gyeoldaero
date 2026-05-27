@@ -35,6 +35,7 @@ yarn-error.*
 
 # API keys (do not commit)
 src/constants/apiKeys.ts
+src/constants/naverApiKeys.ts
 
 # typescript
 *.tsbuildinfo
