@@ -124,7 +124,9 @@ async function fetchShortTerm(): Promise<WeatherDay[]> {
   const SKY_RANK: Record<string, number> = { '1': 0, '3': 1, '4': 2 };
 
   const byDate: Record<string, {
-    worstPty: string; worstSky: string; tMin?: number; tMax?: number;
+    worstPty: string; worstSky: string;
+    tMin?: number; tMax?: number;
+    tmpMin?: number; tmpMax?: number; // TMN/TMX 없을 때 TMP로 추정
   }> = {};
 
   for (const item of items) {
@@ -143,24 +145,31 @@ async function fetchShortTerm(): Promise<WeatherDay[]> {
     }
     if (item.category === 'TMN') byDate[d].tMin = Math.round(Number(item.fcstValue));
     if (item.category === 'TMX') byDate[d].tMax = Math.round(Number(item.fcstValue));
+    // TMN/TMX가 없을 경우(오늘 늦은 시간 조회 등) TMP로 min/max 추정
+    if (item.category === 'TMP') {
+      const t = Math.round(Number(item.fcstValue));
+      if (byDate[d].tmpMin === undefined || t < byDate[d].tmpMin!) byDate[d].tmpMin = t;
+      if (byDate[d].tmpMax === undefined || t > byDate[d].tmpMax!) byDate[d].tmpMax = t;
+    }
   }
 
   const today = new Date();
-  return [0, 1, 2].map((i) => {
+  // D+3까지 수집 — 중기예보 taMin3 누락 문제를 단기로 보완
+  return [0, 1, 2, 3].map((i) => {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     const dateStr = formatDateStr(d);
     const v = byDate[dateStr];
-    if (v && (v.worstPty !== '0' || v.worstSky !== '1' || v.tMin !== undefined)) {
+    if (v && (v.worstPty !== '0' || v.worstSky !== '1' || v.tMin !== undefined || v.tmpMin !== undefined)) {
       return {
         date: dateStr,
         condition: toCondition(v.worstSky, v.worstPty),
-        tMin: v.tMin ?? 14,
-        tMax: v.tMax ?? 22,
+        tMin: v.tMin ?? v.tmpMin ?? 14,
+        tMax: v.tMax ?? v.tmpMax ?? 22,
       };
     }
     const base = 14 + (i % 3);
-    return { date: dateStr, condition: MOCK_PATTERN[i], tMin: base, tMax: base + 8 };
+    return { date: dateStr, condition: MOCK_PATTERN[i % MOCK_PATTERN.length], tMin: base, tMax: base + 8 };
   });
 }
 
@@ -209,7 +218,8 @@ export async function fetchWeatherForecast(): Promise<WeatherDay[]> {
       fetchShortTerm(),
       fetchMidTerm(),
     ]);
-    return [...shortTerm, ...midTerm];
+    // D+0~3은 단기(정확), D+4~9는 중기 — D+3 중복 제거
+    return [...shortTerm, ...midTerm.slice(1)];
   } catch {
     return buildMockForecast();
   }
