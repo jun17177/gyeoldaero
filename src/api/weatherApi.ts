@@ -209,7 +209,7 @@ export async function fetchWeatherForecast(): Promise<WeatherDay[]> {
       fetchShortTerm(),
       fetchMidTerm(),
     ]);
-    return [...shortTerm, ...midTerm]; // D+0~2 + D+3~9 = 10일
+    return [...shortTerm, ...midTerm];
   } catch {
     return buildMockForecast();
   }
