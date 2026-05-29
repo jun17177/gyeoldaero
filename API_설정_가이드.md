@@ -16,7 +16,8 @@ gyeoldaero/
 `apiKeys.ts` 파일에 아래 내용을 그대로 복사해서 붙여넣으세요.
 
 ```typescript
-export const TOUR_API_KEY = 'afab11578352eddddcb3ba080d6a97192ca45c5989a993aa57007e085209d334';
+// 한국관광공사 TourAPI 키 — 팀 단톡방에서 확인
+export const TOUR_API_KEY = '여기에_TOUR_API_KEY_입력';
 
 // 기상청 API 키 (data.go.kr에서 별도 발급 필요)
 // 발급 전까지는 빈 문자열로 두면 앱이 자동으로 가짜 날씨 데이터를 사용합니다
