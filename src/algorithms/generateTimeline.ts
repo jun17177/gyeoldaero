@@ -6,9 +6,11 @@ import { colors } from '../constants/theme';
 const ACCOMMODATION_COORDS: Record<string, { lat: number; lon: number }> = {
   airport:   { lat: 33.5074, lon: 126.4927 },
   jejucity:  { lat: 33.4996, lon: 126.5312 },
+  aewol:     { lat: 33.4600, lon: 126.3100 },
+  hallim:    { lat: 33.3925, lon: 126.2376 },
+  jungmun:   { lat: 33.2453, lon: 126.4126 },
   seogwipo:  { lat: 33.2541, lon: 126.5600 },
-  east:      { lat: 33.4390, lon: 126.9229 },
-  west:      { lat: 33.3925, lon: 126.2376 },
+  seongsan:  { lat: 33.4390, lon: 126.9229 },
   custom:    { lat: 33.4996, lon: 126.5312 },
 };
 
@@ -27,7 +29,10 @@ export function generateTimeline(schedule: TripSchedule): DayPlan[] {
   const { spots, settings, accommodation } = schedule;
   const { startTime, endTime, firstDayArrival, lastDayDeparture, luggage } = settings;
 
-  const accomCoords = ACCOMMODATION_COORDS[accommodation] ?? ACCOMMODATION_COORDS.jejucity;
+  const accomCoords =
+    accommodation === 'custom' && schedule.customAccommodationCoords
+      ? schedule.customAccommodationCoords
+      : (ACCOMMODATION_COORDS[accommodation] ?? ACCOMMODATION_COORDS.jejucity);
   const orderedSpots = nearestNeighbor(spots, accomCoords.lat, accomCoords.lon);
   const totalDays = calcTripDays({
     spots: orderedSpots,

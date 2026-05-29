@@ -18,6 +18,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Spot, TripSchedule } from '../types';
 import { jejuSpots } from '../data/jejuSpots';
 import { fetchJejuSpotsByCategory } from '../api/tourApi';
+import { geocodeJejuAddress, GeocodeResult } from '../api/naverMapApi';
 import { calcTripDays } from '../algorithms/timeBudget';
 import { nearestNeighbor } from '../algorithms/nearestNeighbor';
 import { colors, spacing, radius, shadows } from '../constants/theme';
@@ -53,6 +54,7 @@ const ACCOM_OPTIONS: { id: TripSchedule['accommodation']; label: string }[] = [
   { id: 'jungmun',  label: '중문' },
   { id: 'seogwipo', label: '서귀포' },
   { id: 'seongsan', label: '성산' },
+  { id: 'custom',   label: '직접입력' },
 ];
 
 const THEME_TO_CATEGORY: Record<string, Spot['category']> = {
@@ -131,6 +133,10 @@ export default function SpotSelectScreen() {
   const [accommodation, setAccommodation] = useState<TripSchedule['accommodation']>('jejucity');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Spot['category'] | 'all'>('all');
+  const [customAddress, setCustomAddress] = useState('');
+  const [customCoords, setCustomCoords] = useState<GeocodeResult | null>(null);
+  const [customResolving, setCustomResolving] = useState(false);
+  const [customError, setCustomError] = useState('');
   const [spots, setSpots] = useState<Spot[]>(
     jejuSpots.filter(s => allowedCategories.includes(s.category))
   );
@@ -175,6 +181,45 @@ export default function SpotSelectScreen() {
         : [...prev, spot]
     );
 
+  const handleAccommodationSelect = (id: TripSchedule['accommodation']) => {
+    setAccommodation(id);
+    if (id !== 'custom') {
+      setCustomError('');
+    }
+  };
+
+  const handleCustomAddressChange = (value: string) => {
+    setCustomAddress(value);
+    setCustomCoords(null);
+    setCustomError('');
+  };
+
+  const resolveCustomAccommodation = async () => {
+    const trimmed = customAddress.trim();
+    if (!trimmed) {
+      setCustomError('숙소 주소나 숙소 이름을 입력해주세요.');
+      return;
+    }
+
+    setCustomResolving(true);
+    setCustomError('');
+    try {
+      const result = await geocodeJejuAddress(trimmed);
+      if (!result) {
+        setCustomCoords(null);
+        setCustomError('주소를 찾지 못했어요. 예: 제주 시청, 애월읍 애월로 1');
+        return;
+      }
+      setCustomCoords(result);
+    } catch (e) {
+      console.error('[SpotSelect] 숙소 주소 변환 실패:', e);
+      setCustomCoords(null);
+      setCustomError('주소 확인에 실패했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setCustomResolving(false);
+    }
+  };
+
   const days = useMemo(() => {
     if (selected.length === 0) return 0;
     return calcTripDays({
@@ -188,9 +233,19 @@ export default function SpotSelectScreen() {
     });
   }, [selected, settings]);
 
+  const customAccommodationReady = accommodation !== 'custom' || !!customCoords;
+  const canOptimize = selected.length > 0 && customAccommodationReady && !customResolving;
+
   const handleOptimize = () => {
     if (selected.length === 0) return;
-    const accomCoord = ACCOM_COORDS[accommodation];
+    if (accommodation === 'custom' && !customCoords) {
+      setCustomError('일정 최적화 전에 숙소 주소를 먼저 확인해주세요.');
+      return;
+    }
+
+    const accomCoord = accommodation === 'custom' && customCoords
+      ? { lat: customCoords.lat, lon: customCoords.lon }
+      : ACCOM_COORDS[accommodation];
     const orderedSpots = nearestNeighbor(selected, accomCoord.lat, accomCoord.lon);
     const schedule: TripSchedule = {
       id: Date.now().toString(),
@@ -199,6 +254,12 @@ export default function SpotSelectScreen() {
       days,
       spots: orderedSpots,
       accommodation,
+      customAccommodationAddress: accommodation === 'custom'
+        ? (customCoords?.roadAddress || customCoords?.jibunAddress || customAddress.trim())
+        : undefined,
+      customAccommodationCoords: accommodation === 'custom' && customCoords
+        ? { lat: customCoords.lat, lon: customCoords.lon }
+        : undefined,
       tags: settings.themes,
       settings,
     };
@@ -308,7 +369,7 @@ export default function SpotSelectScreen() {
             <TouchableOpacity
               key={opt.id}
               style={[styles.accomChip, accommodation === opt.id && styles.accomChipActive]}
-              onPress={() => setAccommodation(opt.id)}
+              onPress={() => handleAccommodationSelect(opt.id)}
               activeOpacity={0.8}
             >
               <Text style={[styles.accomText, accommodation === opt.id && styles.accomTextActive]}>
@@ -318,10 +379,52 @@ export default function SpotSelectScreen() {
           ))}
         </ScrollView>
 
+        {accommodation === 'custom' && (
+          <View style={styles.customAccomBox}>
+            <View style={styles.customInputRow}>
+              <Ionicons name="home-outline" size={15} color={colors.textMuted} style={styles.customInputIcon} />
+              <TextInput
+                style={styles.customInput}
+                placeholder="숙소 주소 또는 이름 입력"
+                placeholderTextColor={colors.textMuted}
+                value={customAddress}
+                onChangeText={handleCustomAddressChange}
+                returnKeyType="search"
+                onSubmitEditing={resolveCustomAccommodation}
+              />
+              <TouchableOpacity
+                style={[styles.resolveBtn, customResolving && styles.resolveBtnDisabled]}
+                onPress={resolveCustomAccommodation}
+                disabled={customResolving}
+                activeOpacity={0.85}
+              >
+                {customResolving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.resolveBtnText}>확인</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {customCoords && (
+              <View style={styles.customResultBox}>
+                <Ionicons name="checkmark-circle" size={15} color={colors.teal} />
+                <Text style={styles.customResultText} numberOfLines={2}>
+                  {customCoords.roadAddress || customCoords.jibunAddress || customAddress.trim()}
+                </Text>
+              </View>
+            )}
+
+            {!!customError && (
+              <Text style={styles.customErrorText}>{customError}</Text>
+            )}
+          </View>
+        )}
+
         <TouchableOpacity
-          style={[styles.optimizeBtn, selected.length === 0 && styles.optimizeBtnDisabled]}
+          style={[styles.optimizeBtn, !canOptimize && styles.optimizeBtnDisabled]}
           onPress={handleOptimize}
-          disabled={selected.length === 0}
+          disabled={!canOptimize}
           activeOpacity={0.85}
         >
           <Text style={styles.optimizeBtnText}>일정 최적화하기 →</Text>
@@ -440,6 +543,52 @@ const styles = StyleSheet.create({
   accomChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   accomText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   accomTextActive: { color: '#fff' },
+  customAccomBox: {
+    marginBottom: spacing.md,
+  },
+  customInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingLeft: spacing.md,
+    minHeight: 46,
+  },
+  customInputIcon: { marginRight: spacing.xs },
+  customInput: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.text,
+    paddingVertical: spacing.sm,
+  },
+  resolveBtn: {
+    minWidth: 58,
+    height: 34,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  resolveBtnDisabled: { opacity: 0.6 },
+  resolveBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  customResultBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 7,
+    paddingHorizontal: spacing.sm,
+  },
+  customResultText: { flex: 1, fontSize: 11, color: colors.teal, fontWeight: '600' },
+  customErrorText: {
+    marginTop: 7,
+    paddingHorizontal: spacing.sm,
+    fontSize: 11,
+    color: colors.danger,
+    fontWeight: '600',
+  },
   optimizeBtn: {
     backgroundColor: colors.primary,
     height: 50,

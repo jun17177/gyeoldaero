@@ -18,6 +18,11 @@ export interface TripSchedule {
   days: number;
   spots: Spot[];
   accommodation: 'jejucity' | 'aewol' | 'hallim' | 'jungmun' | 'seogwipo' | 'seongsan' | 'custom';
+  customAccommodationAddress?: string;
+  customAccommodationCoords?: {
+    lat: number;
+    lon: number;
+  };
   tags: string[];
   settings: TripSettings;
   dayPlans?: DayPlan[];

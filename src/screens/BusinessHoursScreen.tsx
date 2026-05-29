@@ -20,7 +20,7 @@ type Nav = StackNavigationProp<RootStackParamList, 'BusinessHours'>;
 type Route = RouteProp<RootStackParamList, 'BusinessHours'>;
 
 const SEARCH_URL = (name: string) =>
-  `https://map.kakao.com/link/search/${encodeURIComponent(name + ' 제주')}`;
+  `https://map.naver.com/p/search/${encodeURIComponent(`${name} 제주`)}`;
 
 function LinkButton({ url }: { url: string }) {
   return (
