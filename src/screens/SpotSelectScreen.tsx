@@ -18,7 +18,11 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Spot, TripSchedule } from '../types';
 import { jejuSpots } from '../data/jejuSpots';
 import { fetchJejuSpotsByCategory } from '../api/tourApi';
-import { geocodeJejuAddress, GeocodeResult } from '../api/naverMapApi';
+import {
+  fetchDrivingRouteSummary,
+  geocodeJejuAddress,
+  GeocodeResult,
+} from '../api/naverMapApi';
 import { calcTripDays } from '../algorithms/timeBudget';
 import { nearestNeighbor } from '../algorithms/nearestNeighbor';
 import { colors, spacing, radius, shadows } from '../constants/theme';
@@ -137,6 +141,7 @@ export default function SpotSelectScreen() {
   const [customCoords, setCustomCoords] = useState<GeocodeResult | null>(null);
   const [customResolving, setCustomResolving] = useState(false);
   const [customError, setCustomError] = useState('');
+  const [routeOptimizing, setRouteOptimizing] = useState(false);
   const [spots, setSpots] = useState<Spot[]>(
     jejuSpots.filter(s => allowedCategories.includes(s.category))
   );
@@ -234,9 +239,33 @@ export default function SpotSelectScreen() {
   }, [selected, settings]);
 
   const customAccommodationReady = accommodation !== 'custom' || !!customCoords;
-  const canOptimize = selected.length > 0 && customAccommodationReady && !customResolving;
+  const canOptimize = selected.length > 0 && customAccommodationReady && !customResolving && !routeOptimizing;
 
-  const handleOptimize = () => {
+  const buildMoveDurations = async (
+    orderedSpots: Spot[],
+    accomCoord: { lat: number; lon: number }
+  ): Promise<Record<string, number>> => {
+    const durations: Record<string, number> = {};
+    let current = accomCoord;
+
+    for (const spot of orderedSpots) {
+      try {
+        const routeSummary = await fetchDrivingRouteSummary({
+          start: current,
+          goal: { lat: spot.lat, lon: spot.lon },
+        });
+        durations[spot.id] = routeSummary?.durationMinutes ?? 20;
+      } catch (e) {
+        console.warn('[SpotSelect] 이동 시간 조회 실패, 기본값 사용:', e);
+        durations[spot.id] = 20;
+      }
+      current = { lat: spot.lat, lon: spot.lon };
+    }
+
+    return durations;
+  };
+
+  const handleOptimize = async () => {
     if (selected.length === 0) return;
     if (accommodation === 'custom' && !customCoords) {
       setCustomError('일정 최적화 전에 숙소 주소를 먼저 확인해주세요.');
@@ -247,23 +276,41 @@ export default function SpotSelectScreen() {
       ? { lat: customCoords.lat, lon: customCoords.lon }
       : ACCOM_COORDS[accommodation];
     const orderedSpots = nearestNeighbor(selected, accomCoord.lat, accomCoord.lon);
-    const schedule: TripSchedule = {
-      id: Date.now().toString(),
-      name: '제주 여행',
-      createdAt: new Date().toISOString(),
-      days,
-      spots: orderedSpots,
-      accommodation,
-      customAccommodationAddress: accommodation === 'custom'
-        ? (customCoords?.roadAddress || customCoords?.jibunAddress || customAddress.trim())
-        : undefined,
-      customAccommodationCoords: accommodation === 'custom' && customCoords
-        ? { lat: customCoords.lat, lon: customCoords.lon }
-        : undefined,
-      tags: settings.themes,
-      settings,
-    };
-    navigation.navigate('Timeline', { schedule });
+
+    setRouteOptimizing(true);
+    try {
+      const moveDurationsBySpotId = await buildMoveDurations(orderedSpots, accomCoord);
+      const optimizedDays = calcTripDays({
+        spots: orderedSpots,
+        startTime: settings.startTime,
+        endTime: settings.endTime,
+        firstDayArrival: settings.firstDayArrival,
+        lastDayDeparture: settings.lastDayDeparture,
+        luggage: settings.luggage,
+        weatherFactor: SEASON_WEATHER_FACTOR[settings.season] ?? 1.0,
+        moveDurationsBySpotId,
+      });
+      const schedule: TripSchedule = {
+        id: Date.now().toString(),
+        name: '제주 여행',
+        createdAt: new Date().toISOString(),
+        days: optimizedDays,
+        spots: orderedSpots,
+        accommodation,
+        customAccommodationAddress: accommodation === 'custom'
+          ? (customCoords?.roadAddress || customCoords?.jibunAddress || customAddress.trim())
+          : undefined,
+        customAccommodationCoords: accommodation === 'custom' && customCoords
+          ? { lat: customCoords.lat, lon: customCoords.lon }
+          : undefined,
+        moveDurationsBySpotId,
+        tags: settings.themes,
+        settings,
+      };
+      navigation.navigate('Timeline', { schedule });
+    } finally {
+      setRouteOptimizing(false);
+    }
   };
 
   const renderSpot = ({ item }: { item: Spot }) => {
@@ -427,7 +474,11 @@ export default function SpotSelectScreen() {
           disabled={!canOptimize}
           activeOpacity={0.85}
         >
-          <Text style={styles.optimizeBtnText}>일정 최적화하기 →</Text>
+          {routeOptimizing ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.optimizeBtnText}>일정 최적화하기 →</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

@@ -34,6 +34,7 @@ export function generateTimeline(schedule: TripSchedule): DayPlan[] {
       ? schedule.customAccommodationCoords
       : (ACCOMMODATION_COORDS[accommodation] ?? ACCOMMODATION_COORDS.jejucity);
   const orderedSpots = nearestNeighbor(spots, accomCoords.lat, accomCoords.lon);
+  const moveDurationsBySpotId = schedule.moveDurationsBySpotId ?? {};
   const totalDays = calcTripDays({
     spots: orderedSpots,
     startTime,
@@ -41,6 +42,7 @@ export function generateTimeline(schedule: TripSchedule): DayPlan[] {
     firstDayArrival,
     lastDayDeparture,
     luggage,
+    moveDurationsBySpotId,
   });
 
   const dailyMinutes = (endTime - startTime) * 60;
@@ -78,7 +80,7 @@ export function generateTimeline(schedule: TripSchedule): DayPlan[] {
 
     while (spotIdx < orderedSpots.length) {
       const spot = orderedSpots[spotIdx];
-      const moveCost = 20;
+      const moveCost = moveDurationsBySpotId[spot.id] ?? 20;
       const needed = spot.durationMinutes + moveCost;
 
       const lunchSlot = 12 * 60;
@@ -114,16 +116,14 @@ export function generateTimeline(schedule: TripSchedule): DayPlan[] {
 
       if (cursor + needed + mealBudget > dayEnd) break;
 
-      if (items.length > 1) {
-        items.push({
-          type: 'move',
-          time: formatTime(0, cursor),
-          name: '이동',
-          duration: moveCost,
-          dotColor: colors.border,
-        });
-        cursor += moveCost;
-      }
+      items.push({
+        type: 'move',
+        time: formatTime(0, cursor),
+        name: '이동',
+        duration: moveCost,
+        dotColor: colors.border,
+      });
+      cursor += moveCost;
 
       items.push({
         type: 'spot',

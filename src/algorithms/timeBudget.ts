@@ -11,6 +11,7 @@ export function calcTripDays(params: {
   lastDayDeparture?: number;
   luggage: 'light' | 'medium' | 'heavy' | 'very_heavy';
   weatherFactor?: number;
+  moveDurationsBySpotId?: Record<string, number>;
 }): number {
   const dailyMinutes = (params.endTime - params.startTime) * 60;
   const mealTime = 120;
@@ -19,7 +20,10 @@ export function calcTripDays(params: {
   const wf = params.weatherFactor ?? 1.0;
 
   let total = params.spots.reduce((s, sp) => s + sp.durationMinutes, 0);
-  total += Math.max(params.spots.length - 1, 0) * 20;
+  total += params.spots.reduce(
+    (s, sp) => s + (params.moveDurationsBySpotId?.[sp.id] ?? 20),
+    0
+  );
   total += mealTime + bufferTime;
   total *= luggageFactor * wf;
 

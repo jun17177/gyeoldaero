@@ -23,6 +23,7 @@ export interface TripSchedule {
     lat: number;
     lon: number;
   };
+  moveDurationsBySpotId?: Record<string, number>;
   tags: string[];
   settings: TripSettings;
   dayPlans?: DayPlan[];

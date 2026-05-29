@@ -30,9 +30,11 @@
 
 ### 네이버 지도 API 고도화
 - [x] Directions 5 호출 함수 추가
-- [ ] 네이버 콘솔에서 Directions 5 API 사용 신청
-- [ ] 명소 간 실제 자동차 이동 시간 계산
-- [ ] TimelineScreen 이동 항목의 20분 고정값을 실제 이동 시간으로 대체
+- [x] 일정 최적화 시 명소 간 실제 자동차 이동 시간 조회 연결
+- [x] Directions API 실패 시 20분 기본 이동 시간 fallback 적용
+- [ ] 네이버 콘솔에서 Geocoding/Reverse Geocoding/Directions 5 API 사용 신청 상태 확인
+- [ ] API 스모크 테스트 401 Permission Denied 해결 후 실제 응답 재확인
+- [ ] 실제 기기/시뮬레이터에서 직접입력 숙소와 Directions 응답 확인
 - [ ] 타임라인 식사 슬롯에 주변 맛집 실제 데이터 연동
 
 ### 기상청 API 연동
