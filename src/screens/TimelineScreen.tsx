@@ -15,7 +15,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, DayPlan, TimelineItem } from '../types';
 import { generateTimeline } from '../algorithms/generateTimeline';
-import { saveSchedule } from '../storage/scheduleStorage';
+
 import { colors, spacing, radius } from '../constants/theme';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Timeline'>;
@@ -67,10 +67,12 @@ export default function TimelineScreen() {
     schedule.dayPlans?.length ? schedule.dayPlans : generateTimeline(schedule),
   [schedule]);
 
-  const handleSave = async () => {
-    await saveSchedule({ ...schedule, name: scheduleName, dayPlans });
+  const handleSave = () => {
     setSaveModal(false);
-    navigation.navigate('SavedList');
+    navigation.navigate('Weather', {
+      schedule: { ...schedule, dayPlans },
+      scheduleName,
+    });
   };
 
   const formatDays = () => {

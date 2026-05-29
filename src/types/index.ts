@@ -21,6 +21,7 @@ export interface TripSchedule {
   tags: string[];
   settings: TripSettings;
   dayPlans?: DayPlan[];
+  startDate?: string; // YYYYMMDD
 }
 
 export interface TripSettings {
@@ -60,5 +61,6 @@ export type RootStackParamList = {
   SpotSelect: { settings: TripSettings };
   Timeline: { schedule: TripSchedule };
   BusinessHours: { schedule: TripSchedule };
+  Weather: { schedule: TripSchedule; scheduleName: string };
   SavedDetail: { scheduleId: string };
 };
