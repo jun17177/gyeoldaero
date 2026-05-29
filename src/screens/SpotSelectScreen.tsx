@@ -202,7 +202,7 @@ export default function SpotSelectScreen() {
   const resolveCustomAccommodation = async () => {
     const trimmed = customAddress.trim();
     if (!trimmed) {
-      setCustomError('숙소 주소나 숙소 이름을 입력해주세요.');
+      setCustomError('숙소 도로명주소나 지번주소를 입력해주세요.');
       return;
     }
 
@@ -212,7 +212,7 @@ export default function SpotSelectScreen() {
       const result = await geocodeJejuAddress(trimmed);
       if (!result) {
         setCustomCoords(null);
-        setCustomError('주소를 찾지 못했어요. 예: 제주 시청, 애월읍 애월로 1');
+        setCustomError('주소를 찾지 못했어요. 예: 제주시 광양9길 10');
         return;
       }
       setCustomCoords(result);
@@ -432,7 +432,7 @@ export default function SpotSelectScreen() {
               <Ionicons name="home-outline" size={15} color={colors.textMuted} style={styles.customInputIcon} />
               <TextInput
                 style={styles.customInput}
-                placeholder="숙소 주소 또는 이름 입력"
+                placeholder="숙소 도로명/지번주소 입력"
                 placeholderTextColor={colors.textMuted}
                 value={customAddress}
                 onChangeText={handleCustomAddressChange}

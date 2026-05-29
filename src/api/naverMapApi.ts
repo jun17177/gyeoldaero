@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { NAVER_MAP_API_KEY, NAVER_MAP_API_KEY_ID } from '../constants/naverApiKeys';
 
-const NAVER_MAP_BASE_URL = 'https://naveropenapi.apigw.ntruss.com';
+const NAVER_MAP_BASE_URL = 'https://maps.apigw.ntruss.com';
 
 interface NaverApiResponse<T> {
   status: string;
