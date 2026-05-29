@@ -11,6 +11,9 @@
 - [x] GitHub 연동 및 팀원 공유 가이드 (README.md, AGENTS.md)
 - [x] 한국관광공사 TourAPI 연동 (KorService2, 명소 실사진 표시, 시드 데이터 fallback)
 - [x] TravelStyleScreen 날씨 선택 항목 제거 (날씨 선택 → WeatherScreen으로 이전 예정)
+- [x] 네이버 지도 Geocoding/Reverse Geocoding API 키 등록 및 공통 API 모듈 추가
+- [x] SpotSelectScreen 직접입력 숙소 주소 지오코딩 연결
+- [x] 바로가기 링크 카카오 지도 → 네이버 지도 검색으로 변경
 
 ---
 
@@ -25,10 +28,12 @@
   - [ ] 선택한 날짜를 일정에 저장
 - [ ] RootStackParamList 및 App.tsx에 WeatherScreen 등록
 
-### 카카오 Local API 연동 (나중에)
-- [ ] 카카오 개발자 계정 REST API 키 발급
+### 네이버 지도 API 고도화
+- [x] Directions 5 호출 함수 추가
+- [ ] 네이버 콘솔에서 Directions 5 API 사용 신청
+- [ ] 명소 간 실제 자동차 이동 시간 계산
+- [ ] TimelineScreen 이동 항목의 20분 고정값을 실제 이동 시간으로 대체
 - [ ] 타임라인 식사 슬롯에 주변 맛집 실제 데이터 연동
-- [ ] 명소 간 실제 이동 시간 계산
 
 ### 기상청 API 연동
 - [ ] src/api/weatherApi.ts 구현

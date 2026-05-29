@@ -43,6 +43,25 @@ interface ReverseGeocodeResult {
   land?: ReverseGeocodeLand;
 }
 
+interface DirectionRoute {
+  summary?: {
+    distance?: number;
+    duration?: number;
+    tollFare?: number;
+    taxiFare?: number;
+    fuelPrice?: number;
+  };
+}
+
+interface DirectionResponse {
+  code: number;
+  message: string;
+  currentDateTime?: string;
+  route?: {
+    traoptimal?: DirectionRoute[];
+  };
+}
+
 export interface GeocodeResult {
   lat: number;
   lon: number;
@@ -57,6 +76,14 @@ export interface ReverseGeocodeResultData {
   area2?: string;
   area3?: string;
   area4?: string;
+}
+
+export interface DrivingRouteSummary {
+  distanceMeters: number;
+  durationMinutes: number;
+  tollFare?: number;
+  taxiFare?: number;
+  fuelPrice?: number;
 }
 
 function buildHeaders() {
@@ -150,4 +177,37 @@ export async function reverseGeocodeCoords(
 export async function geocodeJejuAddress(query: string): Promise<GeocodeResult | null> {
   const normalized = query.includes('제주') ? query : `제주 ${query}`;
   return geocodeAddress(normalized);
+}
+
+export async function fetchDrivingRouteSummary(params: {
+  start: { lat: number; lon: number };
+  goal: { lat: number; lon: number };
+}): Promise<DrivingRouteSummary | null> {
+  const res = await axios.get<DirectionResponse>(
+    `${NAVER_MAP_BASE_URL}/map-direction/v1/driving`,
+    {
+      headers: buildHeaders(),
+      params: {
+        start: `${params.start.lon},${params.start.lat}`,
+        goal: `${params.goal.lon},${params.goal.lat}`,
+        option: 'traoptimal',
+      },
+      timeout: 10000,
+    }
+  );
+
+  if (res.data.code !== 0) {
+    throw new Error(res.data.message || '네이버 길찾기 조회에 실패했습니다.');
+  }
+
+  const summary = res.data.route?.traoptimal?.[0]?.summary;
+  if (!summary?.distance || !summary?.duration) return null;
+
+  return {
+    distanceMeters: summary.distance,
+    durationMinutes: Math.ceil(summary.duration / 1000 / 60),
+    tollFare: summary.tollFare,
+    taxiFare: summary.taxiFare,
+    fuelPrice: summary.fuelPrice,
+  };
 }
