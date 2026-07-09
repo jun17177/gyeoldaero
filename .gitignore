@@ -30,12 +30,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files (실제 키는 .env에만 — 커밋 금지)
+.env
 .env*.local
-
-# API keys (do not commit)
-src/constants/apiKeys.ts
-src/constants/naverApiKeys.ts
 
 # typescript
 *.tsbuildinfo
