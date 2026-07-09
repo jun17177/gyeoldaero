@@ -12,9 +12,12 @@ export const colors = {
   teal: '#0A7B7B',
 };
 
+// App.tsx의 useFonts에서 로딩하는 실제 패밀리 이름과 일치해야 한다
 export const fonts = {
-  sans: 'NotoSansKR',
-  serif: 'NotoSerifKR',
+  sans: 'NotoSansKR_400Regular',
+  sansMedium: 'NotoSansKR_500Medium',
+  sansBold: 'NotoSansKR_700Bold',
+  serifBold: 'NotoSerifKR_700Bold', // 타이틀·로고 전용
 };
 
 export const spacing = {

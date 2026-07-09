@@ -122,6 +122,7 @@ export default function DetailConditionScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const prevSettings = route.params?.settings ?? {};
+  const mode = route.params?.mode ?? 'manual';
 
   const [startTime, setStartTime] = useState(9);
   const [endTime, setEndTime]     = useState(19);
@@ -271,13 +272,13 @@ export default function DetailConditionScreen() {
       <View style={styles.bottomBar}>
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={() => navigation.navigate('SpotSelect', { settings: buildSettings() })}
+          onPress={() => navigation.navigate('SpotSelect', { settings: buildSettings(), mode })}
           activeOpacity={0.85}
         >
           <Text style={styles.primaryButtonText}>명소 선택하기 →</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => navigation.navigate('SpotSelect', { settings: buildSettings() })}
+          onPress={() => navigation.navigate('SpotSelect', { settings: buildSettings(), mode })}
           style={styles.skipWrapper}
         >
           <Text style={styles.skipText}>기본값으로 건너뛰기</Text>

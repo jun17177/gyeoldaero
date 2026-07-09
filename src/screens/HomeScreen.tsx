@@ -11,7 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
 import WaveLogo from '../components/WaveLogo';
-import { colors, spacing, radius } from '../constants/theme';
+import { colors, spacing, radius, fonts } from '../constants/theme';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -62,8 +62,8 @@ const styles = StyleSheet.create({
   },
   center: { flex: 1, justifyContent: 'center' },
   headline: {
+    fontFamily: fonts.serifBold,
     fontSize: 36,
-    fontWeight: '700',
     color: colors.text,
     lineHeight: 48,
     marginBottom: spacing.sm,

@@ -51,7 +51,8 @@ function StepDots({ active }: { active: 1 | 2 }) {
 
 export default function TravelStyleScreen() {
   const navigation = useNavigation<Nav>();
-  useRoute<Route>();
+  const route = useRoute<Route>();
+  const mode = route.params?.mode ?? 'manual';
 
   const [themes, setThemes] = useState<TripSettings['themes']>([]);
   const [season, setSeason]   = useState<TripSettings['season']>('spring');
@@ -61,9 +62,10 @@ export default function TravelStyleScreen() {
 
   const handleNext = () => {
     navigation.navigate('DetailCondition', {
+      mode,
       settings: {
         themes: themes.length > 0 ? themes : ['healing'],
-        weather: 'sunny',
+        weather: 'sunny', // 실제 날씨는 SpotSelect에서 기상청 API로 대체된다
         season,
       },
     });
