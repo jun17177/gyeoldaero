@@ -51,6 +51,12 @@ interface DirectionRoute {
     taxiFare?: number;
     fuelPrice?: number;
   };
+  path?: number[][]; // [[lon, lat], ...] 실제 도로 경로 좌표
+}
+
+export interface LatLon {
+  lat: number;
+  lon: number;
 }
 
 interface DirectionResponse {
@@ -210,4 +216,38 @@ export async function fetchDrivingRouteSummary(params: {
     taxiFare: summary.taxiFare,
     fuelPrice: summary.fuelPrice,
   };
+}
+
+// 출발→도착 실제 도로 경로 좌표열을 반환. 실패 시 null (호출부에서 직선으로 폴백).
+export async function fetchDrivingRoutePath(params: {
+  start: LatLon;
+  goal: LatLon;
+  signal?: AbortSignal;
+}): Promise<LatLon[] | null> {
+  try {
+    const res = await axios.get<DirectionResponse>(
+      `${NAVER_MAP_BASE_URL}/map-direction/v1/driving`,
+      {
+        headers: buildHeaders(),
+        params: {
+          start: `${params.start.lon},${params.start.lat}`,
+          goal: `${params.goal.lon},${params.goal.lat}`,
+          option: 'traoptimal',
+        },
+        timeout: 10000,
+        signal: params.signal,
+      }
+    );
+
+    if (res.data.code !== 0) return null;
+    const path = res.data.route?.traoptimal?.[0]?.path;
+    if (!Array.isArray(path) || path.length === 0) return null;
+    // 네이버 path는 [lon, lat] 순서
+    return path
+      .filter(p => Array.isArray(p) && p.length >= 2)
+      .map(([lon, lat]) => ({ lat, lon }))
+      .filter(c => Number.isFinite(c.lat) && Number.isFinite(c.lon));
+  } catch {
+    return null;
+  }
 }
