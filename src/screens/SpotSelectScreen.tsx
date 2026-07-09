@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
-  Image,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,29 +18,26 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Spot, TripSchedule } from '../types';
 import { jejuSpots } from '../data/jejuSpots';
-import { fetchJejuSpotsByCategory } from '../api/tourApi';
+import { themeScore } from '../constants/themeProfiles';
+import { mergeSeedAndApiSpots } from '../utils/mergeSpots';
+import { loadImageCache, saveImageToCache } from '../storage/imageCache';
+import { seasonScore } from '../utils/seasonScore';
+import SpotCard from '../components/SpotCard';
+import { fetchJejuSpotsByCategory, fetchSpotImage } from '../api/tourApi';
+import StateView from '../components/StateView';
 import {
   fetchDrivingRouteSummary,
   geocodeJejuAddress,
   GeocodeResult,
 } from '../api/naverMapApi';
-import { calcTripDays } from '../algorithms/timeBudget';
+import { fetchJejuWeather, JejuWeather } from '../api/weatherApi';
+import { fetchSpotRecommendations } from '../api/aiApi';
+import { generateTimeline } from '../algorithms/generateTimeline';
 import { nearestNeighbor } from '../algorithms/nearestNeighbor';
 import { colors, spacing, radius, shadows } from '../constants/theme';
 
 type Nav = StackNavigationProp<RootStackParamList, 'SpotSelect'>;
 type Route = RouteProp<RootStackParamList, 'SpotSelect'>;
-
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
-
-const CATEGORY_ICON: Record<string, IoniconsName> = {
-  nature:   'leaf-outline',
-  activity: 'bicycle-outline',
-  culture:  'business-outline',
-  food:     'restaurant-outline',
-  photo:    'camera-outline',
-  night:    'moon-outline',
-};
 
 const ACCOM_COORDS: Record<string, { lat: number; lon: number }> = {
   jejucity: { lat: 33.4996, lon: 126.5312 }, // 제주시 (공항 포함)
@@ -52,23 +50,16 @@ const ACCOM_COORDS: Record<string, { lat: number; lon: number }> = {
 };
 
 const ACCOM_OPTIONS: { id: TripSchedule['accommodation']; label: string }[] = [
+  { id: 'custom',   label: '직접입력' },
   { id: 'jejucity', label: '제주시' },
   { id: 'aewol',    label: '애월' },
   { id: 'hallim',   label: '한림' },
   { id: 'jungmun',  label: '중문' },
   { id: 'seogwipo', label: '서귀포' },
   { id: 'seongsan', label: '성산' },
-  { id: 'custom',   label: '직접입력' },
 ];
 
-const THEME_TO_CATEGORY: Record<string, Spot['category']> = {
-  healing:  'nature',
-  activity: 'activity',
-  food:     'food',
-  culture:  'culture',
-  photo:    'photo',
-  night:    'night',
-};
+// 테마 성격(카테고리+태그) 정의는 themeProfiles로 일원화
 
 const ALL_FILTER_OPTIONS: { id: Spot['category'] | 'all'; label: string }[] = [
   { id: 'all',      label: '전체' },
@@ -80,36 +71,12 @@ const ALL_FILTER_OPTIONS: { id: Spot['category'] | 'all'; label: string }[] = [
   { id: 'night',    label: '야경' },
 ];
 
-const SEASON_WEATHER_FACTOR: Record<string, number> = {
-  spring: 1.0,
-  summer: 1.1,  // 더위로 이동·활동 시간 증가
-  fall:   1.0,
-  winter: 1.15, // 추위·방한 준비로 이동 시간 증가
-};
 
-// 계절에 맞는 명소에 높은 점수 부여 → 정렬에 사용
-function seasonScore(spot: Spot, season: string): number {
-  const tags = spot.tags;
-  switch (season) {
-    case 'winter':
-      if (['culture', 'food'].includes(spot.category)) return 2;
-      if (tags.some(t => ['실내', '수족관', '박물관', '시장', '체험'].includes(t))) return 2;
-      if (tags.some(t => ['해변', '수영', '스노클링', '서핑'].includes(t))) return 0;
-      return 1;
-    case 'summer':
-      if (tags.some(t => ['해변', '수영', '서핑', '스쿠버', '스노클링', '에메랄드'].includes(t))) return 2;
-      if (['food'].includes(spot.category)) return 1;
-      return 1;
-    case 'spring':
-      if (tags.some(t => ['꽃', '정원', '동백', '녹차', '벚꽃', '봄'].includes(t))) return 2;
-      if (tags.some(t => ['산림욕', '숲', '힐링', '피톤치드'].includes(t))) return 2;
-      return 1;
-    case 'fall':
-      if (tags.some(t => ['트레킹', '등산', '산림욕', '숲', '단풍'].includes(t))) return 2;
-      return 1;
-    default:
-      return 1;
-  }
+// id 중복 제거 — TourAPI는 테마별 조회 시 같은 명소를 여러 번 돌려줄 수 있어
+// FlatList key 충돌을 막기 위해 합친 뒤 한 번 정리한다.
+function dedupeById(spots: Spot[]): Spot[] {
+  const seen = new Set<string>();
+  return spots.filter(s => (seen.has(s.id) ? false : (seen.add(s.id), true)));
 }
 
 function formatDays(days: number) {
@@ -121,17 +88,11 @@ function formatDays(days: number) {
 export default function SpotSelectScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { settings } = route.params;
+  const { settings, mode = 'manual' } = route.params;
 
-  // 선택한 테마 → 허용 카테고리
-  const allowedCategories = settings.themes
-    .map(t => THEME_TO_CATEGORY[t])
-    .filter((c): c is Spot['category'] => !!c);
-
-  // 필터 탭: 선택된 테마에 해당하는 것만 노출
-  const visibleFilters = ALL_FILTER_OPTIONS.filter(
-    f => f.id === 'all' || allowedCategories.includes(f.id as Spot['category'])
-  );
+  // 테마는 "차단 필터"가 아니라 "추천 우선순위" — 전체 명소를 다 보여주되
+  // 테마 맞춤 명소가 뱃지와 함께 상단에 오도록 정렬한다. 필터 칩도 전체 노출.
+  const visibleFilters = ALL_FILTER_OPTIONS;
 
   const [selected, setSelected] = useState<Spot[]>([]);
   const [accommodation, setAccommodation] = useState<TripSchedule['accommodation']>('jejucity');
@@ -142,21 +103,65 @@ export default function SpotSelectScreen() {
   const [customResolving, setCustomResolving] = useState(false);
   const [customError, setCustomError] = useState('');
   const [routeOptimizing, setRouteOptimizing] = useState(false);
-  const [spots, setSpots] = useState<Spot[]>(
-    jejuSpots.filter(s => allowedCategories.includes(s.category))
-  );
+  const [spots, setSpots] = useState<Spot[]>(jejuSpots);
   const [loading, setLoading] = useState(false);
+  const [weather, setWeather] = useState<JejuWeather | null>(null);
+  const [usedFallback, setUsedFallback] = useState(false);
+  const [autoFilled, setAutoFilled] = useState(false);
+  const [aiRecs, setAiRecs] = useState<{ spot: Spot; reason: string }[]>([]);
+  const [aiSummary, setAiSummary] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const aiRequested = useRef(false);
+
+  // imageUrl 없는 명소를 TourAPI 실제 사진으로 지연 보강 (동시성 4, 시도한 id는 재요청 안 함)
+  const imgTried = useRef<Set<string>>(new Set());
+  const enrichAbort = useRef(false);
+  const enrichImages = useCallback((list: Spot[]) => {
+    enrichAbort.current = false;
+    const queue = list.filter(s => !s.imageUrl && !imgTried.current.has(s.id));
+    if (queue.length === 0) return;
+    const run = async () => {
+      while (queue.length > 0 && !enrichAbort.current) {
+        const s = queue.shift()!;
+        imgTried.current.add(s.id);
+        const url = await fetchSpotImage(s);
+        if (url && !enrichAbort.current) {
+          setSpots(prev => prev.map(p => (p.id === s.id ? { ...p, imageUrl: url } : p)));
+          void saveImageToCache(s.id, url); // 다음 방문 땐 API 없이 즉시 표시
+        }
+      }
+    };
+    for (let i = 0; i < 4; i++) void run();
+  }, []);
 
   const loadSpots = useCallback(async () => {
     setLoading(true);
+    setUsedFallback(false);
+    enrichAbort.current = true; // 이전 보강 작업 중단
     try {
-      const results = await Promise.all(
-        allowedCategories.map(cat => fetchJejuSpotsByCategory(cat))
-      );
-      const combined = results.flat();
-      if (combined.length > 0) setSpots(combined);
+      // 전체 카테고리 조회 — 테마 밖 명소도 목록 하단에서 선택 가능해야 하므로
+      const apiSpots = dedupeById(await fetchJejuSpotsByCategory('all'));
+      if (apiSpots.length > 0) {
+        // 시드(성격 태그·정확한 체류시간)를 기본으로 유지하고, 시드에 없는 API 명소만 보탠다.
+        // — API로 통째 대체하면 테마 태그 매칭·체류시간 정확도가 사라지는 문제 방지
+        const cache = await loadImageCache();
+        const merged = mergeSeedAndApiSpots(jejuSpots, apiSpots).map(s =>
+          !s.imageUrl && cache[s.id] ? { ...s, imageUrl: cache[s.id] } : s
+        );
+        setSpots(merged);
+        enrichImages(merged); // 캐시에 없는 명소만 실제 이미지로 보강
+        aiRequested.current = false; // 새 명소 목록 기준으로 AI 추천 다시 요청
+      } else {
+        setUsedFallback(true); // API는 응답했지만 결과 0건 → 시드 데이터 유지
+      }
     } catch (e) {
       console.error('[SpotSelect] API 실패:', e);
+      setUsedFallback(true);
+      // 오프라인이어도 이전에 캐시된 사진은 보여준다
+      try {
+        const cache = await loadImageCache();
+        setSpots(prev => prev.map(s => (!s.imageUrl && cache[s.id] ? { ...s, imageUrl: cache[s.id] } : s)));
+      } catch { /* 캐시 실패 시 이모지 폴백 유지 */ }
     } finally {
       setLoading(false);
     }
@@ -167,15 +172,88 @@ export default function SpotSelectScreen() {
     loadSpots();
   }, [loadSpots]);
 
+  // 언마운트 시 진행 중인 이미지 보강 중단
+  useEffect(() => () => { enrichAbort.current = true; }, []);
+
+  // 제주 오늘 날씨 조회 → 기간 산출 보정에 사용
+  useEffect(() => {
+    let cancelled = false;
+    fetchJejuWeather()
+      .then(w => { if (!cancelled) setWeather(w); })
+      .catch(e => console.warn('[SpotSelect] 날씨 조회 실패:', e));
+    return () => { cancelled = true; };
+  }, []);
+
+  // AI 맞춤 명소 추천 — 명소 로딩이 끝나면 한 번만 요청. 실패해도 화면은 정상 동작.
+  // 자동 설정 모드(mode==='auto')면 추천 명소를 자동으로 담아준다.
+  useEffect(() => {
+    if (loading || spots.length === 0 || aiRequested.current) return;
+    aiRequested.current = true;
+    let cancelled = false;
+    setAiLoading(true);
+
+    // 자동 모드에서 AI가 실패했을 때: 테마 성격 점수 → 계절 점수 순 상위 6곳을 대신 담는다
+    const autoFallback = () => {
+      if (mode !== 'auto') return;
+      const top = [...spots]
+        .sort((a, b) =>
+          themeScore(b, settings.themes) - themeScore(a, settings.themes) ||
+          seasonScore(b, settings.season) - seasonScore(a, settings.season))
+        .slice(0, 6);
+      setSelected(prev => (prev.length > 0 ? prev : top));
+      setAutoFilled(true);
+    };
+
+    fetchSpotRecommendations({
+      spots,
+      settings: { ...settings, weather: weather?.condition ?? settings.weather },
+      maxCount: mode === 'auto' ? 6 : 5,
+    })
+      .then(result => {
+        if (cancelled) return;
+        if (!result || !Array.isArray(result.recommendations)) { autoFallback(); return; }
+        const byId = new Map(spots.map(s => [s.id, s]));
+        const seenRec = new Set<string>();
+        const recs = result.recommendations
+          .map(r => {
+            const spot = byId.get(r.spotId);
+            return spot ? { spot, reason: r.reason } : null;
+          })
+          .filter((r): r is { spot: Spot; reason: string } => r !== null)
+          // LLM이 같은 명소를 중복 추천해도 한 번만 (selected/타임라인 중복 방지)
+          .filter(r => (seenRec.has(r.spot.id) ? false : (seenRec.add(r.spot.id), true)));
+        setAiRecs(recs);
+        setAiSummary(result.summary ?? '');
+        if (mode === 'auto' && recs.length > 0) {
+          // 사용자가 이미 직접 담기 시작했다면 덮어쓰지 않는다
+          setSelected(prev => (prev.length > 0 ? prev : recs.map(r => r.spot)));
+          setAutoFilled(true);
+        } else if (mode === 'auto') {
+          autoFallback();
+        }
+      })
+      .catch(e => {
+        if (cancelled) return;
+        console.warn('[SpotSelect] AI 추천 처리 실패, 폴백:', e);
+        autoFallback();
+      })
+      .finally(() => { if (!cancelled) setAiLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, spots]);
+
   const filtered = useMemo(() =>
     spots
       .filter(s => {
-        const inTheme  = allowedCategories.includes(s.category);
-        const matchCat = filter === 'all' ? inTheme : s.category === filter;
+        // 테마로 걸러내지 않는다 — 전체 명소 노출, 테마 맞춤은 정렬·뱃지로 표현
+        const matchCat = filter === 'all' || s.category === filter;
         const matchQ   = !query || s.name.includes(query) || s.tags.some(t => t.includes(query));
         return matchCat && matchQ;
       })
-      .sort((a, b) => seasonScore(b, settings.season) - seasonScore(a, settings.season)),
+      // 테마 성격이 뚜렷한 명소 우선, 동점이면 계절 점수
+      .sort((a, b) =>
+        themeScore(b, settings.themes) - themeScore(a, settings.themes) ||
+        seasonScore(b, settings.season) - seasonScore(a, settings.season)),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [spots, filter, query]);
 
@@ -225,18 +303,24 @@ export default function SpotSelectScreen() {
     }
   };
 
+  // 미리보기 일수 — 실제 생성기(generateTimeline)와 동일 기준으로 산출해 결과와 어긋나지 않게 한다.
+  // (이동시간은 아직 API 조회 전이라 기본값으로 추정)
   const days = useMemo(() => {
     if (selected.length === 0) return 0;
-    return calcTripDays({
+    const preview: TripSchedule = {
+      id: 'preview', name: '', createdAt: '', days: 0,
       spots: selected,
-      startTime: settings.startTime,
-      endTime: settings.endTime,
-      firstDayArrival: settings.firstDayArrival,
-      lastDayDeparture: settings.lastDayDeparture,
-      luggage: settings.luggage,
-      weatherFactor: SEASON_WEATHER_FACTOR[settings.season] ?? 1.0,
-    });
-  }, [selected, settings]);
+      accommodation,
+      customAccommodationCoords:
+        accommodation === 'custom' && customCoords
+          ? { lat: customCoords.lat, lon: customCoords.lon }
+          : undefined,
+      moveDurationsBySpotId: {},
+      tags: settings.themes,
+      settings: { ...settings, weather: weather?.condition ?? settings.weather },
+    };
+    return generateTimeline(preview).length;
+  }, [selected, settings, accommodation, customCoords, weather]);
 
   const customAccommodationReady = accommodation !== 'custom' || !!customCoords;
   const canOptimize = selected.length > 0 && customAccommodationReady && !customResolving && !routeOptimizing;
@@ -280,21 +364,11 @@ export default function SpotSelectScreen() {
     setRouteOptimizing(true);
     try {
       const moveDurationsBySpotId = await buildMoveDurations(orderedSpots, accomCoord);
-      const optimizedDays = calcTripDays({
-        spots: orderedSpots,
-        startTime: settings.startTime,
-        endTime: settings.endTime,
-        firstDayArrival: settings.firstDayArrival,
-        lastDayDeparture: settings.lastDayDeparture,
-        luggage: settings.luggage,
-        weatherFactor: SEASON_WEATHER_FACTOR[settings.season] ?? 1.0,
-        moveDurationsBySpotId,
-      });
-      const schedule: TripSchedule = {
+      const scheduleBase: TripSchedule = {
         id: Date.now().toString(),
         name: '제주 여행',
         createdAt: new Date().toISOString(),
-        days: optimizedDays,
+        days: 0, // 아래에서 실제 생성 일수로 확정
         spots: orderedSpots,
         accommodation,
         customAccommodationAddress: accommodation === 'custom'
@@ -305,7 +379,12 @@ export default function SpotSelectScreen() {
           : undefined,
         moveDurationsBySpotId,
         tags: settings.themes,
-        settings,
+        settings: { ...settings, weather: weather?.condition ?? settings.weather },
+      };
+      // days는 실제 생성되는 일자 수로 확정 — 누락 방지로 늘어난 날짜까지 반영, 전 화면 표시와 일치
+      const schedule: TripSchedule = {
+        ...scheduleBase,
+        days: generateTimeline(scheduleBase).length,
       };
       navigation.navigate('Timeline', { schedule });
     } finally {
@@ -313,44 +392,59 @@ export default function SpotSelectScreen() {
     }
   };
 
-  const renderSpot = ({ item }: { item: Spot }) => {
-    const isSelected = !!selected.find(s => s.id === item.id);
+  // AI 추천 섹션 — 추천이 있거나 로딩 중일 때만 리스트 상단에 노출
+  const renderAiHeader = () => {
+    if (!aiLoading && aiRecs.length === 0) return null;
     return (
-      <TouchableOpacity
-        style={[styles.spotCard, isSelected && styles.spotCardSelected]}
-        onPress={() => toggleSpot(item)}
-        activeOpacity={0.85}
-      >
-        {isSelected && (
-          <View style={styles.checkBadge}>
-            <Ionicons name="checkmark" size={13} color="#fff" />
-          </View>
-        )}
-        <View style={styles.spotImageArea}>
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.spotImage} />
-          ) : (
-            <Ionicons name={CATEGORY_ICON[item.category] ?? 'location-outline'} size={38} color={colors.primary} />
-          )}
+      <View style={styles.aiSection}>
+        <View style={styles.aiTitleRow}>
+          <Ionicons name="sparkles" size={14} color={colors.primary} />
+          <Text style={styles.aiTitle}>AI 맞춤 추천</Text>
+          {aiLoading && <ActivityIndicator size="small" color={colors.primary} />}
         </View>
-        <View style={styles.spotInfo}>
-          <Text style={styles.spotName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.spotMeta}>
-            {item.category === 'nature'   ? '자연' :
-             item.category === 'activity' ? '액티비티' :
-             item.category === 'culture'  ? '문화' :
-             item.category === 'food'     ? '미식' :
-             item.category === 'photo'    ? '사진' : '야경'} · {item.durationMinutes}분
-          </Text>
-          {isSelected && <Text style={styles.selectedLabel}>✓ 담김</Text>}
-        </View>
-      </TouchableOpacity>
+        {!!aiSummary && <Text style={styles.aiSummary}>{aiSummary}</Text>}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {aiRecs.map(({ spot, reason }) => {
+            const isSelected = !!selected.find(s => s.id === spot.id);
+            return (
+              <TouchableOpacity
+                key={spot.id}
+                style={[styles.aiCard, isSelected && styles.aiCardSelected]}
+                onPress={() => toggleSpot(spot)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.aiCardHeader}>
+                  <Text style={styles.aiCardName} numberOfLines={1}>{spot.name}</Text>
+                  {isSelected && (
+                    <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                  )}
+                </View>
+                <Text style={styles.aiCardReason} numberOfLines={2}>{reason}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
     );
   };
+
+  const renderSpot = ({ item }: { item: Spot }) => (
+    <SpotCard
+      item={item}
+      isSelected={!!selected.find(s => s.id === item.id)}
+      isThemePick={themeScore(item, settings.themes) > 0}
+      onPress={toggleSpot}
+    />
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      {/* 숙소 주소 입력 시 키보드가 하단 패널을 가리지 않도록 밀어올린다 */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
 
       {/* 검색창 */}
       <View style={styles.searchBar}>
@@ -363,6 +457,26 @@ export default function SpotSelectScreen() {
           onChangeText={setQuery}
         />
       </View>
+
+      {/* 자동 설정: AI가 명소를 담았다는 안내 */}
+      {autoFilled && selected.length > 0 && (
+        <View style={styles.autoBanner}>
+          <Ionicons name="sparkles" size={14} color={colors.primary} />
+          <Text style={styles.autoBannerText}>
+            취향에 맞춰 명소 {selected.length}개를 담아뒀어요 — 자유롭게 조정한 뒤 일정을 최적화하세요
+          </Text>
+        </View>
+      )}
+
+      {/* 실시간 명소 로딩 실패 안내 */}
+      {usedFallback && (
+        <TouchableOpacity style={styles.fallbackBanner} onPress={loadSpots} activeOpacity={0.8}>
+          <Ionicons name="cloud-offline-outline" size={14} color={colors.warning} />
+          <Text style={styles.fallbackText}>
+            실시간 명소를 불러오지 못해 기본 목록을 보여드려요 · 탭해서 다시 시도
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* 필터 칩 */}
       <View style={styles.filterRow}>
@@ -383,7 +497,7 @@ export default function SpotSelectScreen() {
       {/* 명소 그리드 */}
       {loading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <StateView variant="loading" message="제주 명소를 불러오는 중..." />
         </View>
       ) : (
         <FlatList
@@ -394,6 +508,20 @@ export default function SpotSelectScreen() {
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderAiHeader}
+          ListEmptyComponent={
+            <StateView
+              variant="empty"
+              title={query ? '검색 결과가 없어요' : '표시할 명소가 없어요'}
+              message={
+                query
+                  ? `"${query}"에 맞는 명소를 찾지 못했어요`
+                  : '다른 카테고리를 선택해보세요'
+              }
+              onRetry={query ? () => setQuery('') : undefined}
+              retryLabel="검색 지우기"
+            />
+          }
         />
       )}
 
@@ -401,7 +529,17 @@ export default function SpotSelectScreen() {
       <View style={styles.bottomPanel}>
         {/* 일수 뱃지 */}
         <View style={styles.daysSection}>
-          <Text style={styles.daysText}>{formatDays(days)}</Text>
+          <View style={styles.daysHeaderRow}>
+            <Text style={styles.daysText}>{formatDays(days)}</Text>
+            {weather && (
+              <View style={styles.weatherChip}>
+                <Text style={styles.weatherChipText}>
+                  {weather.emoji} {weather.label}
+                  {weather.tempC != null ? ` ${Math.round(weather.tempC)}°` : ''}
+                </Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.daysSub}>
             {selected.length > 0
               ? `명소 ${selected.length}개 담김 · 자동 계산`
@@ -481,6 +619,7 @@ export default function SpotSelectScreen() {
           )}
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -523,39 +662,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   gridRow: { gap: 10, marginBottom: 10 },
-  spotCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    position: 'relative',
-    ...shadows.card,
-  },
-  spotCardSelected: {
-    borderColor: colors.primary,
-  },
-  checkBadge: {
-    position: 'absolute',
-    top: 8, right: 8,
-    width: 22, height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  spotImageArea: {
-    height: 80,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  spotInfo: { padding: spacing.sm, paddingTop: 6 },
-  spotName: { fontSize: 12, fontWeight: '700', color: colors.text, marginBottom: 2 },
-  spotMeta: { fontSize: 10, color: colors.textMuted },
-  selectedLabel: { fontSize: 10, color: colors.primary, fontWeight: '600', marginTop: 2 },
+  // 명소 카드 스타일은 components/SpotCard.tsx로 이관
   bottomPanel: {
     backgroundColor: colors.surface,
     borderTopWidth: 1,
@@ -564,15 +671,116 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.lg,
   },
+  autoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+  },
+  autoBannerText: {
+    flex: 1,
+    fontSize: 11,
+    color: colors.primary,
+  },
+  fallbackBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: '#FEF3E2',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+  },
+  fallbackText: {
+    flex: 1,
+    fontSize: 11,
+    color: colors.warning,
+  },
+  aiSection: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  aiTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  aiTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  aiSummary: {
+    fontSize: 12,
+    color: colors.text,
+    lineHeight: 17,
+    marginBottom: spacing.sm,
+  },
+  aiCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.sm,
+    marginRight: spacing.sm,
+    width: 170,
+  },
+  aiCardSelected: {
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+  },
+  aiCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  aiCardName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  aiCardReason: {
+    fontSize: 11,
+    color: colors.textMuted,
+    lineHeight: 15,
+  },
   daysSection: {
     alignItems: 'center',
     marginBottom: spacing.sm,
+  },
+  daysHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   daysText: {
     fontSize: 28,
     fontWeight: '700',
     color: colors.text,
     lineHeight: 34,
+  },
+  weatherChip: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+  },
+  weatherChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
   daysSub: { fontSize: 12, color: colors.textMuted },
   accomLabel: {
@@ -650,5 +858,4 @@ const styles = StyleSheet.create({
   optimizeBtnDisabled: { opacity: 0.4 },
   optimizeBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  spotImage: { width: '100%', height: 80 },
 });

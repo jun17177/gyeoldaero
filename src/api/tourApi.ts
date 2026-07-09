@@ -126,6 +126,53 @@ export async function fetchNearbySpots(
     .map(mapToSpot);
 }
 
+// GPS 기반 주변 음식점 조회 — 타임라인 식사 추천에서 사용
+export async function fetchNearbyRestaurants(
+  lat: number,
+  lon: number,
+  radiusMeters = 5000,
+): Promise<Spot[]> {
+  const items = await apiGet<TourItem>('locationBasedList2', {
+    mapX: lon.toString(),
+    mapY: lat.toString(),
+    radius: radiusMeters.toString(),
+    contentTypeId: '39', // 음식점
+    arrange: 'S', // 거리순
+  });
+  return items
+    .filter(item => parseFloat(item.mapy) !== 0 && parseFloat(item.mapx) !== 0)
+    .map(mapToSpot);
+}
+
+// 명소 대표 이미지 조회 — imageUrl 없는 명소를 실제 사진으로 보강할 때 사용.
+// TourAPI contentId(숫자 id)면 상세 이미지, 그 외(시드 id)면 이름 키워드 검색. 실패 시 undefined.
+export async function fetchSpotImage(spot: { id: string; name: string }): Promise<string | undefined> {
+  interface ImageItem { originimgurl?: string; smallimageurl?: string }
+  const detailImage = async (contentId: string): Promise<string | undefined> => {
+    const imgs = await apiGet<ImageItem>('detailImage2', { contentId, imageYN: 'Y' });
+    return imgs.find(i => i.originimgurl)?.originimgurl ?? imgs[0]?.smallimageurl;
+  };
+
+  try {
+    if (/^\d+$/.test(spot.id)) {
+      const img = await detailImage(spot.id);
+      if (img) return img;
+    }
+    // 주의: searchKeyword2 + areaCode=39 조합은 일부 제주 명소(비자림 등)가 0건으로 나오는
+    // TourAPI 데이터 불일치가 있어, 지역필터 없이 검색 후 주소로 제주만 걸러낸다.
+    const found = await apiGet<TourItem>('searchKeyword2', { keyword: spot.name });
+    const jejuOnly = found.filter(i => (i.addr1 ?? '').includes('제주'));
+    const withImage = jejuOnly.find(i => i.firstimage)?.firstimage;
+    if (withImage) return withImage;
+    // firstimage가 비어도 검색 결과가 있으면 그 contentid의 상세 이미지로 2차 시도
+    const first = jejuOnly[0];
+    if (first?.contentid) return await detailImage(first.contentid);
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // 명소 홈페이지 URL 조회 — BusinessHoursScreen에서 사용
 export async function fetchSpotHomepage(contentId: string): Promise<string | undefined> {
   interface DetailItem { homepage?: string; }
