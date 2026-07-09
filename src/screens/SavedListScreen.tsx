@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,8 +14,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import WaveLogo from '../components/WaveLogo';
 import { RootStackParamList, TripSchedule } from '../types';
-import { loadAllSchedules } from '../storage/scheduleStorage';
-import { colors, spacing, radius, shadows } from '../constants/theme';
+import { loadAllSchedules, deleteSchedule } from '../storage/scheduleStorage';
+import { colors, spacing, radius, shadows, fonts } from '../constants/theme';
+import { formatStartDate } from '../utils/date';
 
 type Nav = StackNavigationProp<RootStackParamList, 'SavedList'>;
 
@@ -53,11 +55,31 @@ export default function SavedListScreen() {
     }, [])
   );
 
+  // 카드 길게 누르면 삭제 (확인 후)
+  const handleDelete = (item: TripSchedule) => {
+    Alert.alert(
+      '일정 삭제',
+      `"${item.name}" 일정을 삭제할까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteSchedule(item.id);
+            setSchedules(await loadAllSchedules());
+          },
+        },
+      ],
+    );
+  };
+
   const renderCard = ({ item, index }: { item: TripSchedule; index: number }) => {
     const thumbIcon = THUMB_ICONS[index % THUMB_ICONS.length];
     const date = new Date(item.createdAt).toLocaleDateString('ko-KR', {
       year: 'numeric', month: '2-digit', day: '2-digit',
     }).replace(/\. /g, '.').replace(/\.$/, '');
+    const departure = formatStartDate(item.startDate);
 
     const tags = [
       ...item.settings.themes.map(t => THEME_LABEL[t] ?? t),
@@ -69,7 +91,8 @@ export default function SavedListScreen() {
     return (
       <TouchableOpacity
         style={styles.card}
-        onPress={() => navigation.navigate('Timeline', { schedule: item })}
+        onPress={() => navigation.navigate('SavedDetail', { schedule: item })}
+        onLongPress={() => handleDelete(item)}
         activeOpacity={0.85}
       >
         <View style={styles.thumbnailWrap}>
@@ -82,6 +105,12 @@ export default function SavedListScreen() {
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+          {departure && (
+            <View style={styles.departRow}>
+              <Ionicons name="calendar" size={12} color={colors.primary} />
+              <Text style={styles.departText}>{departure} 출발</Text>
+            </View>
+          )}
           <Text style={styles.cardMeta}>{date} 저장 · 명소 {item.spots.length}곳</Text>
           <View style={styles.tagRow}>
             {tags.map(tag => (
@@ -103,6 +132,7 @@ export default function SavedListScreen() {
       {schedules.length > 0 ? (
         <>
           <Text style={styles.title}>저장된 일정</Text>
+          <Text style={styles.deleteHint}>카드를 길게 누르면 삭제할 수 있어요</Text>
           <FlatList
             data={schedules}
             keyExtractor={item => item.id}
@@ -139,12 +169,19 @@ export default function SavedListScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontFamily: fonts.serifBold,
+    fontSize: 26, // 스펙: Noto Serif KR Bold 26px
     color: colors.text,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
+  },
+  deleteHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    paddingHorizontal: spacing.xl,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.sm,
   },
   list: {
     paddingHorizontal: spacing.xl,
@@ -182,6 +219,8 @@ const styles = StyleSheet.create({
   dayBadgeText: { color: '#fff', fontSize: 8.5, fontWeight: '700' },
   cardBody: { flex: 1 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 3 },
+  departRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 },
+  departText: { fontSize: 11, fontWeight: '600', color: colors.primary },
   cardMeta: { fontSize: 10, color: colors.textMuted, marginBottom: 6 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   tagChip: {

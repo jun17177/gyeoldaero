@@ -27,6 +27,9 @@ export interface TripSchedule {
   tags: string[];
   settings: TripSettings;
   dayPlans?: DayPlan[];
+  aiComment?: string;   // AI 플래너 코멘트 — 저장 시 함께 보관해 재방문 시 재호출 방지
+  startDate?: string;   // 여행 출발일 (YYYYMMDD) — 날씨 화면에서 선택, 미선택 시 undefined
+  manualSpotOrder?: boolean; // 사용자가 타임라인에서 직접 순서를 조정함 — 자동 재정렬(nearestNeighbor) 건너뜀
 }
 
 export interface TripSettings {
@@ -49,6 +52,7 @@ export interface TimelineItem {
   duration: number;
   dotColor: string;
   options?: string[];
+  selectedOption?: string;  // 사용자가 고른 식당 (meal 전용)
   linkUrl?: string;
 }
 
@@ -62,9 +66,11 @@ export type RootStackParamList = {
   SavedList: undefined;
   Home: undefined;
   TravelStyle: { mode: 'manual' | 'auto' };
-  DetailCondition: { settings: Partial<TripSettings> };
-  SpotSelect: { settings: TripSettings };
+  DetailCondition: { settings: Partial<TripSettings>; mode?: 'manual' | 'auto' };
+  SpotSelect: { settings: TripSettings; mode?: 'manual' | 'auto' };
   Timeline: { schedule: TripSchedule };
+  RouteMap: { schedule: TripSchedule; initialDay?: number };
+  Weather: { schedule: TripSchedule; scheduleName: string };
   BusinessHours: { schedule: TripSchedule };
-  SavedDetail: { scheduleId: string };
+  SavedDetail: { schedule: TripSchedule };
 };
