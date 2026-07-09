@@ -13,7 +13,8 @@ export function calcTripDays(params: {
   weatherFactor?: number;
   moveDurationsBySpotId?: Record<string, number>;
 }): number {
-  const dailyMinutes = (params.endTime - params.startTime) * 60;
+  // 활동시간이 0 이하이면 나눗셈이 Infinity가 되어 호출부(generateTimeline)가 무한루프에 빠질 수 있으므로 최소 1분 보장
+  const dailyMinutes = Math.max((params.endTime - params.startTime) * 60, 1);
   const mealTime = 120;
   const bufferTime = 30;
   const luggageFactor = { light: 1.0, medium: 1.1, heavy: 1.2, very_heavy: 1.4 }[params.luggage];
