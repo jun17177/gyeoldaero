@@ -106,7 +106,12 @@ export async function fetchJejuSpotsByCategory(
   const results = await Promise.all(
     (typeMap[category] ?? ['12']).map(id => fetchByTypeId(id)),
   );
-  return results.flat();
+  const spots = results.flat();
+  // photo·night은 TourAPI 전용 타입이 없어 관광지(12)에서 가져오므로 카테고리를 강제 설정
+  if (category === 'photo' || category === 'night') {
+    return spots.map(s => ({ ...s, category: category as Spot['category'], emoji: categoryEmoji(category as Spot['category']) }));
+  }
+  return spots;
 }
 
 // GPS 기반 주변 명소 조회

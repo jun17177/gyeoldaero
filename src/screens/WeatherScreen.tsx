@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { RootStackParamList } from '../types';
 import { colors, spacing, radius, shadows } from '../constants/theme';
 import { fetchWeatherForecast, WeatherDay, SkyCondition } from '../api/weatherApi';
 import { saveSchedule } from '../storage/scheduleStorage';
+import { calcTripDays } from '../algorithms/timeBudget';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Weather'>;
 type Route = RouteProp<RootStackParamList, 'Weather'>;
@@ -32,6 +33,18 @@ const WEATHER_META: Record<
 };
 
 const DAY_KR = ['일', '월', '화', '수', '목', '금', '토'];
+
+const WEATHER_FACTOR: Record<SkyCondition, number> = {
+  sunny: 1.0,
+  cloudy: 1.05,
+  rainy: 1.2,
+  snowy: 1.3,
+};
+
+function formatTripDays(days: number): string {
+  if (days <= 1) return '당일치기';
+  return `${days - 1}박 ${days}일`;
+}
 
 function parseDate(dateStr: string): Date {
   const yyyy = parseInt(dateStr.slice(0, 4), 10);
@@ -62,6 +75,22 @@ export default function WeatherScreen() {
 
   const tripDays = schedule.days;
 
+  const adjustedDays = useMemo(() => {
+    if (selectedStart === null || forecast.length === 0) return schedule.days;
+    const range = forecast.slice(selectedStart, selectedStart + tripDays);
+    const worstFactor = Math.max(...range.map(d => WEATHER_FACTOR[d.condition]));
+    if (worstFactor === 1.0) return schedule.days;
+    return calcTripDays({
+      spots: schedule.spots,
+      startTime: schedule.settings.startTime,
+      endTime: schedule.settings.endTime,
+      firstDayArrival: schedule.settings.firstDayArrival,
+      lastDayDeparture: schedule.settings.lastDayDeparture,
+      luggage: schedule.settings.luggage,
+      weatherFactor: worstFactor,
+    });
+  }, [selectedStart, forecast, schedule, tripDays]);
+
   useEffect(() => {
     fetchWeatherForecast()
       .then(setForecast)
@@ -78,7 +107,7 @@ export default function WeatherScreen() {
     const startDate = withDate && selectedStart !== null
       ? forecast[selectedStart]?.date
       : undefined;
-    await saveSchedule({ ...schedule, name: scheduleName, dayPlans: schedule.dayPlans, startDate });
+    await saveSchedule({ ...schedule, name: scheduleName, dayPlans: schedule.dayPlans, days: adjustedDays, startDate });
     setSaving(false);
     navigation.navigate('SavedList');
   };
@@ -129,6 +158,16 @@ export default function WeatherScreen() {
         <Ionicons name="information-circle-outline" size={15} color={colors.primary} />
         <Text style={styles.guideText}>출발 날짜를 탭하면 여행 기간이 자동으로 표시됩니다</Text>
       </View>
+
+      {/* 날씨 일수 조정 배너 */}
+      {!loading && selectedStart !== null && adjustedDays !== schedule.days && (
+        <View style={styles.weatherAdjustBanner}>
+          <Ionicons name="rainy-outline" size={15} color={colors.warning} />
+          <Text style={styles.weatherAdjustText}>
+            날씨 영향으로 {formatTripDays(schedule.days)} → {formatTripDays(adjustedDays)} 조정 권장
+          </Text>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.loadingWrap}>
@@ -415,6 +454,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   summaryText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+
+  // 날씨 조정 배너
+  weatherAdjustBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+    backgroundColor: '#FFF7ED',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+  },
+  weatherAdjustText: { fontSize: 12, color: colors.warning, flex: 1, fontWeight: '600' },
 
   // 저장 버튼
   saveBtn: {
