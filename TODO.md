@@ -21,19 +21,22 @@
 - [x] 날씨 아이콘 Ionicons 활용 (sunny/partly-sunny/rainy/snow)
 - [x] 날씨 API 버그 수정 (12시 단일 샘플 → 6·9·12·15·18시 최악 조건, numOfRows 1500)
 - [x] TROUBLESHOOTING.md 작성 (날씨 기능 개편 + API 버그 수정 기록)
+- [x] data.go.kr에서 기상청 단기예보 서비스 신청 및 전용 API 키 발급
+- [x] apiKeys.ts의 WEATHER_API_KEY를 발급받은 키로 교체
 
 ---
 
 ## 🔧 진행 예정
 
 ### 카카오 Local API 연동 (나중에)
-- [ ] 카카오 개발자 계정 REST API 키 발급
-- [ ] 타임라인 식사 슬롯에 주변 맛집 실제 데이터 연동
+- [ ] 카카오 개발자 계정 REST API 키 발급 (지도 SDK 아닌 REST API 방식 — 앱에 지도 화면이 없고 Expo Go 워크플로우 유지 위함)
+- [ ] src/api/kakaoApi.ts 구현 — 좌표 기준 반경 내 음식점 카테고리(FD6) 검색
+- [ ] generateTimeline.ts의 하드코딩된 MEAL_OPTIONS를 카카오 로컬 API 실검색 결과로 교체 (동선 좌표 기반 맛집 추천)
 - [ ] 명소 간 실제 이동 시간 계산
 
-### 기상청 API 키
-- [ ] data.go.kr에서 기상청 단기예보 서비스 신청 및 전용 API 키 발급
-- [ ] apiKeys.ts의 WEATHER_API_KEY를 발급받은 키로 교체
+### Claude API 연동 (나중에 — 백엔드 키 관리 방식 먼저 결정 필요)
+- [ ] 최소 백엔드(Node/Express) 엔드포인트 구축 — Claude API 키는 서버 환경변수로만 보관, 클라이언트는 백엔드 엔드포인트만 호출
+- [ ] "자동 설정" 플로우에 자유 텍스트 입력 → Structured Outputs로 TripSettings 구조화 변환 기능 연동
 
 ---
 
