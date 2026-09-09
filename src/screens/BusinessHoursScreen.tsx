@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Linking,
   StyleSheet,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,8 +40,25 @@ export default function BusinessHoursScreen() {
   const route = useRoute<Route>();
   const { schedule } = route.params;
 
-  const dayPlans: DayPlan[] =
-    schedule.dayPlans?.length ? schedule.dayPlans : generateTimeline(schedule);
+  const [dayPlans, setDayPlans] = useState<DayPlan[]>(schedule.dayPlans ?? []);
+  const [loading, setLoading] = useState(!schedule.dayPlans?.length);
+
+  useEffect(() => {
+    if (schedule.dayPlans?.length) {
+      setDayPlans(schedule.dayPlans);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    generateTimeline(schedule).then(plans => {
+      if (!cancelled) {
+        setDayPlans(plans);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [schedule]);
 
   const renderItem = (item: TimelineItem, idx: number, isLast: boolean) => {
     const url = item.linkUrl ?? SEARCH_URL(item.name);
@@ -64,6 +82,17 @@ export default function BusinessHoursScreen() {
       </View>
     );
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -104,6 +133,7 @@ export default function BusinessHoursScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   heroHeader: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.xl,

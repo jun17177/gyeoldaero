@@ -17,6 +17,7 @@ import { colors, spacing, radius, shadows } from '../constants/theme';
 import { fetchWeatherForecast, WeatherDay, SkyCondition } from '../api/weatherApi';
 import { saveSchedule } from '../storage/scheduleStorage';
 import { calcTripDays } from '../algorithms/timeBudget';
+import { generateTimeline } from '../algorithms/generateTimeline';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Weather'>;
 type Route = RouteProp<RootStackParamList, 'Weather'>;
@@ -75,10 +76,13 @@ export default function WeatherScreen() {
 
   const tripDays = schedule.days;
 
-  const adjustedDays = useMemo(() => {
-    if (selectedStart === null || forecast.length === 0) return schedule.days;
+  const worstFactor = useMemo(() => {
+    if (selectedStart === null || forecast.length === 0) return 1.0;
     const range = forecast.slice(selectedStart, selectedStart + tripDays);
-    const worstFactor = Math.max(...range.map(d => WEATHER_FACTOR[d.condition]));
+    return Math.max(...range.map(d => WEATHER_FACTOR[d.condition]));
+  }, [selectedStart, forecast, tripDays]);
+
+  const adjustedDays = useMemo(() => {
     if (worstFactor === 1.0) return schedule.days;
     return calcTripDays({
       spots: schedule.spots,
@@ -89,7 +93,7 @@ export default function WeatherScreen() {
       luggage: schedule.settings.luggage,
       weatherFactor: worstFactor,
     });
-  }, [selectedStart, forecast, schedule, tripDays]);
+  }, [worstFactor, schedule]);
 
   useEffect(() => {
     fetchWeatherForecast()
@@ -107,7 +111,16 @@ export default function WeatherScreen() {
     const startDate = withDate && selectedStart !== null
       ? forecast[selectedStart]?.date
       : undefined;
-    await saveSchedule({ ...schedule, name: scheduleName, dayPlans: schedule.dayPlans, days: adjustedDays, startDate });
+
+    // 날씨 때문에 일정이 늘어난 경우, 늘어난 일수에 맞춰 타임라인을 다시 생성 — 그렇지 않으면
+    // days만 늘어나고 실제 하루하루 일정 내용(dayPlans)은 원래 기간 그대로 남는 불일치가 생김
+    const needsRegenerate = withDate && worstFactor > 1.0;
+    const dayPlans = needsRegenerate
+      ? await generateTimeline(schedule, worstFactor)
+      : schedule.dayPlans;
+    const days = needsRegenerate ? dayPlans!.length : (withDate ? adjustedDays : schedule.days);
+
+    await saveSchedule({ ...schedule, name: scheduleName, dayPlans, days, startDate });
     setSaving(false);
     navigation.navigate('SavedList');
   };

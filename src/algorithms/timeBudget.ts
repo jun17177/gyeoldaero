@@ -1,10 +1,11 @@
 import { Spot } from '../types';
+import { estimateTravelMinutes } from './travelTime';
 
 export const getTransportMode = (luggage: string): 'transit' | 'car' =>
   ['light', 'medium'].includes(luggage) ? 'transit' : 'car';
 
 export function calcTripDays(params: {
-  spots: Spot[];
+  spots: Spot[]; // 동선(nearestNeighbor) 순서로 정렬된 상태여야 함
   startTime: number;
   endTime: number;
   firstDayArrival?: number;
@@ -17,9 +18,14 @@ export function calcTripDays(params: {
   const bufferTime = 30;
   const luggageFactor = { light: 1.0, medium: 1.1, heavy: 1.2, very_heavy: 1.4 }[params.luggage];
   const wf = params.weatherFactor ?? 1.0;
+  const mode = getTransportMode(params.luggage);
 
   let total = params.spots.reduce((s, sp) => s + sp.durationMinutes, 0);
-  total += Math.max(params.spots.length - 1, 0) * 20;
+  for (let i = 1; i < params.spots.length; i++) {
+    const prev = params.spots[i - 1];
+    const cur = params.spots[i];
+    total += estimateTravelMinutes(prev.lat, prev.lon, cur.lat, cur.lon, mode);
+  }
   total += mealTime + bufferTime;
   total *= luggageFactor * wf;
 

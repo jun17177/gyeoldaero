@@ -9,6 +9,11 @@ export interface Spot {
   emoji: string;
   tags: string[];
   businessHoursUrl?: string;
+  // category === 'food'일 때만 의미 있음. 'restaurant'는 동선상 점심/저녁 슬롯에 배정,
+  // 'cafe'·미지정은 일반 명소로 취급
+  foodType?: 'cafe' | 'restaurant';
+  // TourAPI contenttypeid. TourAPI 출처 명소만 값이 있고, 명소 상세 조회(detailIntro2)에 필요
+  contentTypeId?: string;
 }
 
 export interface TripSchedule {
@@ -63,4 +68,5 @@ export type RootStackParamList = {
   BusinessHours: { schedule: TripSchedule };
   Weather: { schedule: TripSchedule; scheduleName: string };
   SavedDetail: { scheduleId: string };
+  SpotDetail: { spot: Spot };
 };

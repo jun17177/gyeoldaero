@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,13 @@ import {
   TextInput,
   StyleSheet,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList, DayPlan, TimelineItem } from '../types';
+import { RootStackParamList, DayPlan, TimelineItem, TripSchedule } from '../types';
 import { generateTimeline } from '../algorithms/generateTimeline';
 
 import { colors, spacing, radius } from '../constants/theme';
@@ -58,14 +59,54 @@ function ItemIcon({ type, spotCategory }: { type: TimelineItem['type']; spotCate
 export default function TimelineScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { schedule } = route.params;
+  const { schedule: initialSchedule } = route.params;
 
+  const [schedule, setSchedule] = useState<TripSchedule>(initialSchedule);
   const [saveModal, setSaveModal] = useState(false);
   const [scheduleName, setScheduleName] = useState('제주 여행');
+  const [dayPlans, setDayPlans] = useState<DayPlan[]>(schedule.dayPlans ?? []);
+  const [loading, setLoading] = useState(!schedule.dayPlans?.length);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [mealEditTarget, setMealEditTarget] = useState<{ day: number; itemIdx: number; options: string[] } | null>(null);
 
-  const dayPlans: DayPlan[] = useMemo(() =>
-    schedule.dayPlans?.length ? schedule.dayPlans : generateTimeline(schedule),
-  [schedule]);
+  useEffect(() => {
+    if (schedule.dayPlans?.length) {
+      setDayPlans(schedule.dayPlans);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    generateTimeline(schedule).then(plans => {
+      if (!cancelled) {
+        setDayPlans(plans);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [schedule]);
+
+  const handleDeleteSpot = () => {
+    if (!deleteTarget) return;
+    setSchedule(prev => ({
+      ...prev,
+      spots: prev.spots.filter(s => s.id !== deleteTarget.id),
+      dayPlans: undefined,
+    }));
+    setDeleteTarget(null);
+  };
+
+  const handleSelectMealOption = (chosen: string) => {
+    if (!mealEditTarget) return;
+    const { day, itemIdx } = mealEditTarget;
+    setDayPlans(prev => prev.map(dp =>
+      dp.day !== day ? dp : {
+        ...dp,
+        items: dp.items.map((it, i) => i === itemIdx ? { ...it, options: [chosen] } : it),
+      }
+    ));
+    setMealEditTarget(null);
+  };
 
   const handleSave = () => {
     setSaveModal(false);
@@ -81,8 +122,18 @@ export default function TimelineScreen() {
     return `${d}박 ${d + 1}일`;
   };
 
-  const renderItem = (item: TimelineItem, idx: number, isLast: boolean) => {
-    const spotCategory = schedule.spots.find(s => s.name === item.name)?.category;
+  const renderItem = (day: number, item: TimelineItem, idx: number, isLast: boolean) => {
+    const matchedSpot = schedule.spots.find(s => s.name === item.name);
+    const canEdit = item.type === 'spot' || (item.type === 'meal' && (item.options?.length ?? 0) > 1);
+
+    const handleEditPress = () => {
+      if (item.type === 'spot' && matchedSpot) {
+        setDeleteTarget({ id: matchedSpot.id, name: matchedSpot.name });
+      } else if (item.type === 'meal' && item.options) {
+        setMealEditTarget({ day, itemIdx: idx, options: item.options });
+      }
+    };
+
     return (
       <View key={`${item.time}_${idx}`} style={styles.timelineRow}>
         <View style={styles.dotCol}>
@@ -90,8 +141,13 @@ export default function TimelineScreen() {
           {!isLast && <View style={styles.connector} />}
         </View>
         <View style={styles.itemContent}>
-          <View style={styles.itemMain}>
-            <ItemIcon type={item.type} spotCategory={spotCategory} />
+          <TouchableOpacity
+            style={styles.itemMain}
+            activeOpacity={item.type === 'spot' && matchedSpot ? 0.6 : 1}
+            disabled={!(item.type === 'spot' && matchedSpot)}
+            onPress={() => matchedSpot && navigation.navigate('SpotDetail', { spot: matchedSpot })}
+          >
+            <ItemIcon type={item.type} spotCategory={matchedSpot?.category} />
             <View style={styles.itemText}>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemMeta}>
@@ -105,18 +161,32 @@ export default function TimelineScreen() {
                 </Text>
               )}
             </View>
-          </View>
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => {}}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.editBtnText}>수정</Text>
           </TouchableOpacity>
+          {canEdit && (
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={handleEditPress}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.editBtnText}>수정</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={styles.loadingText}>일정을 만드는 중이에요…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -168,7 +238,7 @@ export default function TimelineScreen() {
           <View key={plan.day} style={styles.daySection}>
             <Text style={styles.dayLabel}>DAY {plan.day}</Text>
             {plan.items.map((item, idx) =>
-              renderItem(item, idx, idx === plan.items.length - 1)
+              renderItem(plan.day, item, idx, idx === plan.items.length - 1)
             )}
           </View>
         ))}
@@ -218,12 +288,56 @@ export default function TimelineScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* 명소 삭제 모달 */}
+      <Modal visible={!!deleteTarget} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>일정에서 삭제할까요?</Text>
+            <Text style={styles.modalDesc}>
+              {deleteTarget?.name}을(를) 삭제하면 나머지 일정이 자동으로 다시 짜여요.
+            </Text>
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setDeleteTarget(null)}>
+                <Text style={styles.modalCancelText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalDanger} onPress={handleDeleteSpot}>
+                <Text style={styles.modalSaveText}>삭제</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 식사 옵션 선택 모달 */}
+      <Modal visible={!!mealEditTarget} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>식당 선택</Text>
+            {mealEditTarget?.options.map(opt => (
+              <TouchableOpacity
+                key={opt}
+                style={styles.optionRow}
+                onPress={() => handleSelectMealOption(opt)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.optionRowText}>{opt}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.modalCancel} onPress={() => setMealEditTarget(null)}>
+              <Text style={styles.modalCancelText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  loadingText: { fontSize: 13, color: colors.textMuted },
   topSection: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -346,6 +460,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl, width: '80%',
   },
   modalTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  modalDesc: { fontSize: 13, color: colors.textMuted, marginBottom: spacing.lg, lineHeight: 19 },
   modalInput: {
     height: 48, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.md, paddingHorizontal: spacing.md,
@@ -363,4 +478,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
   },
   modalSaveText: { color: '#fff', fontWeight: '700' },
+  modalDanger: {
+    flex: 2, height: 44, backgroundColor: colors.danger,
+    borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
+  },
+  optionRow: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  optionRowText: { fontSize: 15, color: colors.text, fontWeight: '500' },
 });

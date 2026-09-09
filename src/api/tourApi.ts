@@ -39,6 +39,18 @@ function estimateDuration(typeId: string): number {
   return 90;
 }
 
+const CAFE_CAT3_CODE = 'A05020900'; // TourAPI 음식점 cat3: 카페/전통찻집
+const CAFE_NAME_HINTS = ['카페', '커피', 'cafe', 'coffee', '베이커리', '디저트'];
+
+// contenttypeid 39(음식점) 중 카페류는 정찬 개념이 아니므로 일반 명소로 취급하고,
+// 그 외는 점심/저녁 동선 배정 대상인 'restaurant'로 분류
+function classifyFoodType(item: TourItem): Spot['foodType'] {
+  if (item.cat3 === CAFE_CAT3_CODE) return 'cafe';
+  const lowerTitle = (item.title ?? '').toLowerCase();
+  if (CAFE_NAME_HINTS.some(hint => lowerTitle.includes(hint.toLowerCase()))) return 'cafe';
+  return 'restaurant';
+}
+
 function extractTags(item: TourItem): string[] {
   const parts = (item.addr1 ?? '').split(' ');
   // e.g. "제주특별자치도 서귀포시 중문동" → ["중문동"]
@@ -57,6 +69,8 @@ function mapToSpot(item: TourItem): Spot {
     imageUrl: item.firstimage || item.firstimage2 || undefined,
     emoji: categoryEmoji(category),
     tags: extractTags(item),
+    foodType: category === 'food' ? classifyFoodType(item) : undefined,
+    contentTypeId: item.contenttypeid,
   };
 }
 
@@ -131,21 +145,65 @@ export async function fetchNearbySpots(
     .map(mapToSpot);
 }
 
-// 명소 홈페이지 URL 조회 — BusinessHoursScreen에서 사용
-export async function fetchSpotHomepage(contentId: string): Promise<string | undefined> {
-  interface DetailItem { homepage?: string; }
-  const items = await apiGet<DetailItem>('detailCommon2', {
+export interface SpotDetailInfo {
+  overview?: string;
+  tel?: string;
+  homepage?: string;
+  businessHours?: string;
+}
+
+// detailIntro2 응답에서 영업시간/이용시간에 해당하는 필드는 contenttypeid별로 이름이 다름
+const BUSINESS_HOURS_FIELD: Record<string, string> = {
+  '12': 'usetime',        // 관광지
+  '14': 'usetime',        // 문화시설
+  '15': 'playtime',       // 축제/공연/행사
+  '28': 'usetimeleports', // 레포츠
+  '32': 'checkintime',    // 숙박
+  '38': 'opentime',       // 쇼핑
+  '39': 'opentimefood',   // 음식점
+};
+
+function stripHtml(text?: string): string | undefined {
+  if (!text) return undefined;
+  const cleaned = text.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+  return cleaned || undefined;
+}
+
+function extractHref(html?: string): string | undefined {
+  if (!html) return undefined;
+  return html.match(/href=["']([^"']+)["']/)?.[1];
+}
+
+// 명소 상세 정보(설명·전화번호·홈페이지·영업시간) 조회 — SpotDetailScreen에서 사용.
+// contentId가 TourAPI 출처가 아니면(시드 데이터·카카오 카페) 빈 결과가 돌아옴 — 호출부에서 폴백 처리
+export async function fetchSpotDetail(contentId: string, contentTypeId?: string): Promise<SpotDetailInfo> {
+  interface CommonItem { overview?: string; tel?: string; homepage?: string; }
+  const commonItems = await apiGet<CommonItem>('detailCommon2', {
     contentId,
     defaultYN: 'Y',
+    overviewYN: 'Y',
     firstImageYN: 'N',
     areacodeYN: 'N',
     catcodeYN: 'N',
     addrinfoYN: 'N',
     mapinfoYN: 'N',
-    overviewYN: 'N',
   });
-  if (!items.length) return undefined;
-  const html = items[0].homepage ?? '';
-  const match = html.match(/href=["']([^"']+)["']/);
-  return match?.[1];
+  const common = commonItems[0];
+
+  let businessHours: string | undefined;
+  const field = contentTypeId ? BUSINESS_HOURS_FIELD[contentTypeId] : undefined;
+  if (field) {
+    const introItems = await apiGet<Record<string, string>>('detailIntro2', {
+      contentId,
+      contentTypeId: contentTypeId!,
+    });
+    businessHours = stripHtml(introItems[0]?.[field]);
+  }
+
+  return {
+    overview: stripHtml(common?.overview),
+    tel: common?.tel || undefined,
+    homepage: extractHref(common?.homepage),
+    businessHours,
+  };
 }

@@ -18,6 +18,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Spot, TripSchedule } from '../types';
 import { jejuSpots } from '../data/jejuSpots';
 import { fetchJejuSpotsByCategory } from '../api/tourApi';
+import { fetchJejuCafes } from '../api/kakaoApi';
 import { calcTripDays } from '../algorithms/timeBudget';
 import { nearestNeighbor } from '../algorithms/nearestNeighbor';
 import { colors, spacing, radius, shadows } from '../constants/theme';
@@ -142,7 +143,9 @@ export default function SpotSelectScreen() {
       const results = await Promise.all(
         allowedCategories.map(cat => fetchJejuSpotsByCategory(cat))
       );
-      const combined = results.flat();
+      // TourAPI엔 잘 안 잡히는 카페를 보완 — '미식' 테마 선택 시에만 추가 검색
+      const cafes = allowedCategories.includes('food') ? await fetchJejuCafes() : [];
+      const combined = [...results.flat(), ...cafes];
       if (combined.length > 0) setSpots(combined);
     } catch (e) {
       console.error('[SpotSelect] API 실패:', e);
@@ -218,6 +221,14 @@ export default function SpotSelectScreen() {
             <Ionicons name="checkmark" size={13} color="#fff" />
           </View>
         )}
+        <TouchableOpacity
+          style={styles.infoBadge}
+          onPress={() => navigation.navigate('SpotDetail', { spot: item })}
+          activeOpacity={0.7}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+        </TouchableOpacity>
         <View style={styles.spotImageArea}>
           {item.imageUrl ? (
             <Image source={{ uri: item.imageUrl }} style={styles.spotImage} />
@@ -388,6 +399,16 @@ const styles = StyleSheet.create({
     width: 22, height: 22,
     borderRadius: 11,
     backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  infoBadge: {
+    position: 'absolute',
+    top: 6, left: 6,
+    width: 26, height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,

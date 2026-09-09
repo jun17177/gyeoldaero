@@ -14,6 +14,7 @@ import SpotSelectScreen from './src/screens/SpotSelectScreen';
 import TimelineScreen from './src/screens/TimelineScreen';
 import BusinessHoursScreen from './src/screens/BusinessHoursScreen';
 import WeatherScreen from './src/screens/WeatherScreen';
+import SpotDetailScreen from './src/screens/SpotDetailScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -44,6 +45,8 @@ export default function App() {
           <Stack.Screen name="BusinessHours"    component={BusinessHoursScreen} />
           {/* S5_2 */}
           <Stack.Screen name="Weather"          component={WeatherScreen} />
+          {/* S4_1 */}
+          <Stack.Screen name="SpotDetail"       component={SpotDetailScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
