@@ -22,6 +22,7 @@ import { fetchJejuCafes } from '../api/kakaoApi';
 import { calcTripDays } from '../algorithms/timeBudget';
 import { nearestNeighbor } from '../algorithms/nearestNeighbor';
 import { colors, spacing, radius, shadows } from '../constants/theme';
+import { ACCOMMODATION_COORDS, ACCOMMODATION_OPTIONS } from '../constants/accommodations';
 
 type Nav = StackNavigationProp<RootStackParamList, 'SpotSelect'>;
 type Route = RouteProp<RootStackParamList, 'SpotSelect'>;
@@ -36,25 +37,6 @@ const CATEGORY_ICON: Record<string, IoniconsName> = {
   photo:    'camera-outline',
   night:    'moon-outline',
 };
-
-const ACCOM_COORDS: Record<string, { lat: number; lon: number }> = {
-  jejucity: { lat: 33.4996, lon: 126.5312 }, // 제주시 (공항 포함)
-  aewol:    { lat: 33.4600, lon: 126.3100 }, // 애월
-  hallim:   { lat: 33.3925, lon: 126.2376 }, // 한림 (서쪽 해안)
-  jungmun:  { lat: 33.2453, lon: 126.4126 }, // 중문 리조트
-  seogwipo: { lat: 33.2541, lon: 126.5600 }, // 서귀포 시내
-  seongsan: { lat: 33.4390, lon: 126.9229 }, // 성산 (동쪽)
-  custom:   { lat: 33.4996, lon: 126.5312 },
-};
-
-const ACCOM_OPTIONS: { id: TripSchedule['accommodation']; label: string }[] = [
-  { id: 'jejucity', label: '제주시' },
-  { id: 'aewol',    label: '애월' },
-  { id: 'hallim',   label: '한림' },
-  { id: 'jungmun',  label: '중문' },
-  { id: 'seogwipo', label: '서귀포' },
-  { id: 'seongsan', label: '성산' },
-];
 
 const THEME_TO_CATEGORY: Record<string, Spot['category']> = {
   healing:  'nature',
@@ -193,7 +175,7 @@ export default function SpotSelectScreen() {
 
   const handleOptimize = () => {
     if (selected.length === 0) return;
-    const accomCoord = ACCOM_COORDS[accommodation];
+    const accomCoord = ACCOMMODATION_COORDS[accommodation];
     const orderedSpots = nearestNeighbor(selected, accomCoord.lat, accomCoord.lon);
     const schedule: TripSchedule = {
       id: Date.now().toString(),
@@ -315,7 +297,7 @@ export default function SpotSelectScreen() {
         {/* 숙소 위치 */}
         <Text style={styles.accomLabel}>숙소 위치</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.accomScroll}>
-          {ACCOM_OPTIONS.map(opt => (
+          {ACCOMMODATION_OPTIONS.map(opt => (
             <TouchableOpacity
               key={opt.id}
               style={[styles.accomChip, accommodation === opt.id && styles.accomChipActive]}

@@ -3,16 +3,8 @@ import { nearestNeighbor } from './nearestNeighbor';
 import { calcTripDays, getTransportMode } from './timeBudget';
 import { estimateTravelMinutes } from './travelTime';
 import { colors } from '../constants/theme';
+import { ACCOMMODATION_COORDS } from '../constants/accommodations';
 import { fetchNearbyRestaurants } from '../api/kakaoApi';
-
-const ACCOMMODATION_COORDS: Record<string, { lat: number; lon: number }> = {
-  airport:   { lat: 33.5074, lon: 126.4927 },
-  jejucity:  { lat: 33.4996, lon: 126.5312 },
-  seogwipo:  { lat: 33.2541, lon: 126.5600 },
-  east:      { lat: 33.4390, lon: 126.9229 },
-  west:      { lat: 33.3925, lon: 126.2376 },
-  custom:    { lat: 33.4996, lon: 126.5312 },
-};
 
 function formatTime(hour: number, minute: number): string {
   const h = Math.floor(hour + minute / 60);
@@ -32,6 +24,7 @@ export async function generateTimeline(schedule: TripSchedule, weatherFactor = 1
 
   const transportMode = getTransportMode(luggage);
 
+  // 이전 버전에서 저장된 일정에 지금은 없는 숙소 id가 들어있을 수 있어 폴백 유지
   const accomCoords = ACCOMMODATION_COORDS[accommodation] ?? ACCOMMODATION_COORDS.jejucity;
   const orderedSpots = nearestNeighbor(spots, accomCoords.lat, accomCoords.lon);
   const totalDays = calcTripDays({

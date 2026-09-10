@@ -8,6 +8,7 @@ import {
   StyleSheet,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -51,17 +52,31 @@ export default function BusinessHoursScreen() {
     }
     let cancelled = false;
     setLoading(true);
-    generateTimeline(schedule).then(plans => {
-      if (!cancelled) {
-        setDayPlans(plans);
+    generateTimeline(schedule)
+      .then(plans => {
+        if (!cancelled) {
+          setDayPlans(plans);
+          setLoading(false);
+        }
+      })
+      .catch(e => {
+        // 실패해도 로딩 화면엔 빠져나갈 수단이 없으므로 이전 화면으로 되돌려준다
+        console.error('[BusinessHours] 일정 생성 실패:', e);
+        if (cancelled) return;
         setLoading(false);
-      }
-    });
+        Alert.alert('불러오기 실패', '정보를 불러오지 못했어요. 다시 시도해 주세요.');
+        navigation.goBack();
+      });
     return () => { cancelled = true; };
-  }, [schedule]);
+  }, [schedule, navigation]);
 
   const renderItem = (item: TimelineItem, idx: number, isLast: boolean) => {
-    const url = item.linkUrl ?? SEARCH_URL(item.name);
+    // 식당이 확정된 식사(옵션 1개)만 실제 장소로 취급 — 후보가 여러 개면 아직 미확정 상태
+    const chosenRestaurant = item.type === 'meal' && item.options?.length === 1 ? item.options[0] : null;
+    // '이동'·'숙소 출발/복귀' 등은 실제 장소가 아니라 검색 링크가 무의미하므로 표시하지 않음
+    const showLink = item.type === 'spot' || !!chosenRestaurant;
+    const url = item.linkUrl ?? SEARCH_URL(chosenRestaurant ?? item.name);
+
     return (
       <View key={`${item.time}_${idx}`} style={styles.timelineRow}>
         <View style={styles.dotCol}>
@@ -75,9 +90,12 @@ export default function BusinessHoursScreen() {
               <Text style={styles.itemMeta}>
                 {item.time}{item.duration > 0 ? ` · ${item.duration}분` : ''}
               </Text>
+              {chosenRestaurant && (
+                <Text style={styles.itemRestaurant}>{chosenRestaurant}</Text>
+              )}
             </View>
           </View>
-          <LinkButton url={url} />
+          {showLink && <LinkButton url={url} />}
         </View>
       </View>
     );
@@ -167,6 +185,7 @@ const styles = StyleSheet.create({
   itemText: {},
   itemName: { fontSize: 14, fontWeight: '700', color: colors.text },
   itemMeta: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  itemRestaurant: { fontSize: 12, fontWeight: '600', color: colors.warning, marginTop: 3 },
   linkBtn: {
     backgroundColor: colors.primary,
     width: 36, height: 36,

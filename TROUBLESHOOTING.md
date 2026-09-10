@@ -2,6 +2,312 @@
 
 ---
 
+## [2026-09-10] 공개 저장소 git 이력에 data.go.kr 인증키 유출 — 재발급 및 재발 방지
+
+### 요약
+공개 저장소(`github.com/jun17177/gyeoldaero`)의 **git 이력에 실제 data.go.kr 인증키가 남아 있던 것을 발견**하고, 키를 재발급해 교체한 뒤 재발 방지 장치를 추가함.
+
+### 어떻게 발생했나
+문제는 "파일에서 지우면 끝"이라고 생각한 데서 비롯됨. 관련 커밋 3개:
+
+| 순서 | 커밋 | 내용 |
+|------|------|------|
+| 1 | `5557840` | `docs: API 설정 가이드를 저장소 내로 이동…` ← **여기서 실제 키가 커밋됨** |
+| 2 | `583a12b` | `security: API 가이드에서 실제 키 값 제거` ← 값만 지움 |
+| 3 | `9992735` | `chore: 저장소 내 API 가이드 파일 제거` ← 파일 자체 삭제 |
+
+2·3단계로 **현재 파일 트리에서는 키가 보이지 않지만, git은 이력에 원본을 그대로 보존**한다. `5557840` 커밋은 계속 `origin/main`에서 도달 가능한 상태였고, 저장소가 public이라 `git clone` 한 번이면 누구나 열람 가능했음.
+
+원인이 된 파일은 팀원 간 키 공유용 `API_설정_가이드.md`. 저장소 **밖**에 두고 쓰던 문서인데, 이걸 저장소 안으로 옮기면서 사고가 남. `.gitignore`에는 `src/constants/apiKeys.ts`만 등록돼 있어 이 문서는 걸러지지 않았음.
+
+### 왜 앞선 점검에서 못 잡았나
+직전 보안 점검에서 이력을 검사했으나 **검색 범위를 `*.ts`/`*.tsx`로 한정**해서 `.md` 문서를 놓쳤음. "이력은 깨끗하다"고 잘못 결론 내렸음.
+
+```bash
+# 놓친 검사 — 확장자를 한정하면 문서에 든 키를 못 본다
+git grep -nE "(TOUR|KAKAO|WEATHER)_API_KEY *= *['\"][^'\"]{10,}" $(git rev-list --all) -- '*.ts' '*.tsx'
+
+# 실제로 필요한 검사 — 확장자 제한 없이 키 '형태'를 훑는다
+git rev-list --all | while read c; do
+  git grep -IlE "[0-9a-f]{32}|[A-Za-z0-9+/]{40,}={0,2}|%2B|%2F" $c 2>/dev/null
+done | sort -u
+```
+> `package-lock.json`은 integrity 해시 때문에 항상 걸리므로 오탐으로 제외할 것.
+
+### 영향 범위
+| 키 | 유출 | 비고 |
+|----|------|------|
+| data.go.kr 인증키 | **유출됨** | 유출 시점의 키 = 당시 서비스에 쓰던 키 (해시 대조로 확인) |
+| 카카오 REST 키 | 유출 안 됨 | 이력 전체 검색 결과 없음 |
+
+data.go.kr은 **계정당 일반 인증키가 1개**라 `TOUR_API_KEY`와 `WEATHER_API_KEY`가 같은 값을 공유한다. 즉 **키 하나 유출로 TourAPI와 기상청 API가 동시에 노출**됨.
+
+### 대응
+1. **data.go.kr 인증키 재발급** (마이페이지 → 개인 API 인증키 → 재발급) 후 `apiKeys.ts`의 `TOUR_API_KEY`·`WEATHER_API_KEY` 양쪽 교체
+   - 공개된 키는 회수가 불가능하므로(이미 clone·포크·검색 캐시에 남았을 수 있음) **재발급만이 실질적 해결책**. 이력 정리는 위생 조치일 뿐 재발급을 대체하지 못함
+2. **`.gitignore`에 가이드 문서 패턴 추가** — 다시 저장소로 옮겨져도 차단되도록
+```gitignore
+# 키 값이 적힌 설정 가이드 — 저장소 안으로 옮겨져 실제 키가 커밋된 적이 있어 차단
+API_설정_가이드.md
+API_*_가이드.md
+```
+차단 동작 확인: 문서를 저장소로 복사해도 `git check-ignore`가 잡고 `git status`에 뜨지 않음.
+
+### 재발급 후 검증
+키를 붙여넣을 때 **따옴표가 빠져** 컴파일이 깨져 있었음 (`export const TOUR_API_KEY = d36d…;`) → `tsc`가 `TS2304: Cannot find name` 로 검출. 문자열로 감싼 뒤 재검증:
+
+| 항목 | 결과 |
+|------|------|
+| `tsc --noEmit` | 통과 |
+| TourAPI (`areaBasedList2`) | `resultCode 0000 (OK)` — 제주 명소 실데이터 반환 |
+| 기상청 (`getVilageFcst`) | `resultCode 00 (NORMAL_SERVICE)` — 실제 기온 예보 반환 |
+| 앱 전체 플로우 | 명소 선택 → 타임라인 → 날씨 → 저장 완주, 콘솔 에러 0건 |
+| 날씨 실데이터 여부 | 21~29° 실측 범위 — mock(14~24° 고정 패턴)이 아님을 확인 |
+
+### 배운 것 / 재발 방지
+- **git에서 파일을 지워도 이력에는 남는다.** 커밋된 시크릿은 "지우기"가 아니라 **"재발급"**이 정답
+- 시크릿 스캔은 **확장자를 한정하지 말 것** — 코드가 아니라 문서·설정·스크립트에서 새는 경우가 많음
+- 키를 문서로 공유하면 그 문서가 언젠가 저장소로 들어온다. 공유는 메신저 DM 등 저장소 밖 경로로
+
+### 재발급으로 끝나지 않았던 문제 — 옛 키가 폐기되지 않음
+재발급 후 **옛 키로 API를 호출해 실제로 무효화됐는지 검증**했더니 두 API 모두 정상 응답했음.
+
+| 검증 | 결과 |
+|------|------|
+| 옛 키 → TourAPI | `resultCode 0000 (OK)` — **여전히 유효** |
+| 옛 키 → 기상청 | `resultCode 00 (NORMAL_SERVICE)` — **여전히 유효** |
+
+data.go.kr **마이페이지 → 인증키 발급현황**을 확인해보니 원인이 드러남 — 이 화면은 발급 **이력**을 보여줄 뿐이고, 개별 키를 폐기하는 기능이 없음. "일반 인증키 재발급하기" 버튼만 존재하며, **재발급을 해도 이전 키가 자동 무효화되지 않고 둘 다 유효한 상태로 남는다.**
+
+```
+2026/09/10  재발급    d36d…  ← 새 키 (앱에 적용)
+2026/05/22  신규발급  afab…  ← 유출된 키, 폐기 불가
+```
+
+> **교훈: 키를 재발급했다고 끝이 아니다. 옛 키가 실제로 거부되는지 반드시 호출해서 확인할 것.**
+
+키 폐기가 불가능하므로 **"키가 발견되지 않게 하는 것"이 유일한 실질적 방어**가 되었고, 미뤄뒀던 이력 정리가 위생 조치가 아닌 주 대응책으로 격상됨.
+
+### git 이력 정리 (실행 완료)
+`git-filter-repo` 설치가 막혀 git 내장 `filter-branch`로 처리. 작업 디렉터리를 보호하기 위해 **별도 클론에서 수행**하고, 사전에 미커밋 작업분까지 포함해 전체 백업.
+
+```bash
+git clone https://github.com/jun17177/gyeoldaero.git repo && cd repo
+FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --index-filter \
+  'git rm --cached --ignore-unmatch "API_설정_가이드.md"' \
+  --prune-empty -- --all
+```
+
+**작업 중 발견 — 브랜치가 main만 있는 게 아니었음:**
+
+| 브랜치 | 유출 키 | main 대비 고유 커밋 | 처리 |
+|--------|---------|--------------------|------|
+| `main` | 있음 | — | force push |
+| `현준` | 있음 | 0개 (이미 main에 병합) | force push |
+| `태겸` | **없음** | 5개 (고유 작업) | **건드리지 않음** |
+
+`태겸` 브랜치는 유출 커밋 이전에 분기해 키가 없었으므로 그대로 두어 Leeseogmin의 고유 작업 5개를 보존함. main만 정리했다면 `현준` 브랜치에 키가 남을 뻔했음.
+
+**검증 결과**
+
+| 항목 | 결과 |
+|------|------|
+| 코드 트리 해시 (재작성 전/후) | `bc10ec3c…` 동일 — **재작성으로 코드 변경 0** |
+| main 커밋 수 | 17 → 14 (가이드 문서만 건드린 빈 커밋 3개 정리) |
+| 새로 clone 후 전체 이력 키 검색 | 발견되지 않음 |
+| 로컬 저장소 동기화 | 트리가 동일해 `git reset --soft origin/main`으로 이력만 교체 — 미커밋 작업 12개 파일 그대로 보존 |
+| `tsc --noEmit` | 통과 |
+
+### ⚠️ force push로도 완전히 지워지지 않음 (확인됨)
+정리 후 GitHub API로 옛 커밋 접근 여부를 확인한 결과:
+
+```
+GET /repos/jun17177/gyeoldaero/commits/5557840…  →  HTTP 200
+```
+
+**정상적인 clone·브라우징에서는 사라졌지만, SHA를 아는 사람은 여전히 열람 가능하다.** GitHub이 unreachable 객체를 즉시 삭제하지 않기 때문. 완전 제거하려면 GitHub Support에 캐시된 뷰/객체 정리를 요청해야 함.
+
+### 남은 작업
+- **GitHub Support에 옛 커밋 객체 정리 요청** — 옛 키를 data.go.kr에서 폐기할 수 없으므로 이 단계까지 해야 노출이 실질적으로 닫힘
+- **data.go.kr 고객센터(1566-0025)에 옛 키 폐기 요청** — UI에는 없지만 운영자 처리가 가능한지 확인
+- **호출량 모니터링** — 마이페이지에서 일일 호출량이 튀면 제3자 사용 신호. 1차 심사에서 인증키로 호출건수를 확인하므로 통계 오염 여부도 함께 확인할 것
+- 앱 번들 내 키 평문 포함 문제는 여전히 남아 있음 → 백엔드 프록시 도입 시 해결
+- **팀원 재동기화 공지** — 아래 참고
+
+### 팀원 안내 필요
+`main`과 `현준` 브랜치의 이력이 바뀌었으므로 팀원은 그냥 `git pull`하면 안 됨(옛 이력이 되살아날 수 있음).
+
+```bash
+# 미커밋 작업이 있으면 먼저 백업/스태시한 뒤
+git fetch origin
+git reset --hard origin/main
+```
+`태겸` 브랜치는 손대지 않았으므로 해당 브랜치의 작업은 안전함.
+
+### 수정 파일 요약
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `src/constants/apiKeys.ts` | 재발급 키로 교체 (gitignore 대상, 커밋 안 됨) |
+| `.gitignore` | 키가 적힌 가이드 문서 패턴 차단 규칙 추가 |
+
+---
+
+## [2026-09-10] 전체 보안·오류 점검 및 수정 (숙소 좌표 불일치 / 무한 스피너 / axios 취약점)
+
+### 배경
+공모전 1차 심사 제출을 앞두고 코드 전반을 점검하다 발견한 문제들을 한 번에 정리. 가장 큰 건 **숙소 선택지 6개 중 4개가 실제로 동작하지 않던 문제**로, 에러가 나지 않아 지금까지 드러나지 않았음.
+
+---
+
+### 1. 숙소 좌표 키 불일치 — 선택지 6개 중 4개 무효 (가장 영향 큼)
+
+**증상:** 애월·한림·중문·성산을 숙소로 골라도 제주시를 고른 것과 **완전히 동일한 일정**이 생성됨.
+
+**원인:** 숙소 좌표 테이블이 두 파일에 중복 정의돼 있었는데 한쪽만 갱신되어 드리프트가 발생.
+
+| 위치 | 보유 키 |
+|------|---------|
+| `SpotSelectScreen.tsx` (최신) | jejucity, aewol, hallim, jungmun, seogwipo, seongsan, custom |
+| `generateTimeline.ts` (구버전 잔존) | airport, jejucity, seogwipo, **east**, **west**, custom |
+
+`generateTimeline`에는 `aewol`·`hallim`·`jungmun`·`seongsan` 키가 아예 없어서
+`ACCOMMODATION_COORDS[accommodation]`이 `undefined` → `?? jejucity` 폴백으로 **조용히 제주시 좌표로 대체**됨.
+
+`accomCoords`는 ①`nearestNeighbor`의 동선 시작점 ②첫 이동시간 계산 ③첫 끼 맛집 검색 좌표에 모두 쓰이므로, 숙소를 어디로 잡든 제주시 기준으로 일정이 짜이고 있었음.
+
+**근본 원인:** 타입이 `Record<string, ...>`이라 키가 빠져도 `tsc`가 잡지 못함 + 테이블 중복.
+
+**수정:** `src/constants/accommodations.ts`로 단일 출처 통합 + 유니온 타입으로 고정
+```ts
+type AccommodationId = TripSchedule['accommodation'];
+// Record<AccommodationId, ...>로 고정 — 선택지가 바뀌면 tsc가 누락된 키를 잡아준다
+export const ACCOMMODATION_COORDS: Record<AccommodationId, { lat: number; lon: number }> = { ... };
+```
+좌표·라벨·선택지 목록 3종을 이 파일로 모으고, `generateTimeline`/`SpotSelectScreen`/`TimelineScreen`이 모두 여기서 import하도록 변경.
+
+**타입 가드 동작 확인** — `jungmun` 키를 일부러 지우고 `tsc` 실행:
+```
+error TS2741: Property 'jungmun' is missing in type '{...}'
+  but required in type 'Record<"jejucity" | "aewol" | ... | "custom", {...}>'
+```
+
+**수정 후 검증** — 동일한 명소 4곳으로 숙소만 바꿔 비교:
+```
+숙소: 제주시  순서: 별도봉 → 성판악 → 사라오름 → 수월봉  이동: 56/13/133분
+             점심 후보: 별도봉오리사냥 / 우당도서관 구내식당 / 일품순두부 화북점
+숙소: 중문    순서: 사라오름 → 성판악 → 별도봉             이동: 74/13/108분
+             점심 후보: 중문색달해변 / 카오카오베이커리 / 색달해녀의집
+```
+동선·이동시간·맛집 추천이 모두 숙소에 맞게 달라짐 (수정 전에는 두 결과가 동일했음).
+
+---
+
+### 2. 실패 시 빠져나갈 수 없는 무한 스피너 3건
+
+`generateTimeline`/`saveSchedule` 호출부에 `catch`가 없어 실패 시 `loading`·`saving`이 `true`로 고정됨. 특히 로딩 화면에는 뒤로가기 버튼이 없어 **앱을 강제 종료하는 것 외에 방법이 없었음**.
+
+| 파일 | 문제 | 수정 |
+|------|------|------|
+| `WeatherScreen.tsx` | `handleSave`에 try/catch 없음 — 저장 실패 시 스피너 고정 | `try/catch/finally` + 실패 시 Alert, `finally`에서 `setSaving(false)` |
+| `TimelineScreen.tsx` | `.then()`만 있고 `.catch()` 없음 | `.catch()` 추가 — Alert 후 `navigation.goBack()` |
+| `BusinessHoursScreen.tsx` | 위와 동일 | 위와 동일 |
+| `SavedListScreen.tsx` | `loadAllSchedules().then()` 미처리 rejection | `.catch()`로 로깅 |
+
+---
+
+### 3. axios 취약점 (HIGH)
+
+`axios@1.15.2`는 HIGH 등급 취약점 영향 범위(1.0.0~1.17.0)에 포함. **직접 의존성이라 앱 번들에 실제로 탑재**되므로 `axios@1.20.0`으로 업그레이드.
+
+```
+수정 전: critical 1, high 3, moderate 18
+수정 후: critical 1, high 1, moderate 18
+```
+남은 `shell-quote`(critical)·`ws`(high)는 각각 `react-devtools-core`, Metro 개발 서버 경유 —
+**개발 도구 전용이라 릴리스 빌드에는 포함되지 않음**. 조치 불필요.
+
+---
+
+### 4. 스토어 등록 블로커 (`app.json`)
+
+`android.package`와 `ios.bundleIdentifier`가 없어 EAS 빌드·스토어 등록 자체가 불가능한 상태였음. 앱 표시 이름도 `"gyeol"`이라 기기에 영문으로 노출됐음.
+
+```jsonc
+"name": "결대로",                              // gyeol → 결대로
+"ios":     { "bundleIdentifier": "com.gyeoldaero.app", "buildNumber": "1" },
+"android": { "package": "com.gyeoldaero.app", "versionCode": 1 }
+```
+> ⚠️ 번들 ID/패키지명은 **스토어에 최초 배포하고 나면 변경 불가**. 첫 업로드 전에 팀에서 확정할 것.
+
+---
+
+### 아직 미조치 (별도 논의 필요)
+
+| 항목 | 내용 |
+|------|------|
+| **API 키 번들 노출** | `src/constants/apiKeys.ts`의 키 3개가 평문으로 앱 번들에 포함됨. RN은 `src/` 전체가 번들에 들어가므로 배포 시 추출 가능. 백엔드 프록시 필요(Claude API 연동 시 어차피 필요한 그 백엔드). 임시 완화책은 data.go.kr·카카오 콘솔의 앱/도메인 제한 + 쿼터 알림 <br>※ 이 점검에서 "git 이력은 깨끗하다"고 기록했으나 **오판이었음** — 아래 [2026-09-10] 키 유출 항목 참고 |
+| **기기 시간대 의존** | `weatherApi.ts`가 `new Date()` 로컬 시간으로 기상청 발표시각을 계산. 기상청은 KST 고정이라 기기 시간대가 다르면 잘못된 `base_time` 조회 후 조용히 mock 폴백 |
+| **외부 URL 무검증 실행** | `SpotDetailScreen.tsx`가 TourAPI HTML에서 정규식으로 뽑은 href를 스킴 검증 없이 `Linking.openURL`에 전달 |
+
+---
+
+### 수정 파일 요약
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `src/constants/accommodations.ts` | **신규** — 숙소 좌표·라벨·선택지 단일 출처, 유니온 타입으로 누락 방지 |
+| `src/algorithms/generateTimeline.ts` | 구버전 좌표 테이블 제거 → 공용 상수 import |
+| `src/screens/SpotSelectScreen.tsx` | 중복 좌표·선택지 테이블 제거 → 공용 상수 import |
+| `src/screens/TimelineScreen.tsx` | 중복 라벨 테이블 제거, 일정 생성 실패 `.catch()` 추가 |
+| `src/screens/BusinessHoursScreen.tsx` | 일정 생성 실패 `.catch()` 추가 |
+| `src/screens/WeatherScreen.tsx` | `handleSave`에 try/catch/finally + 실패 Alert |
+| `src/screens/SavedListScreen.tsx` | 일정 불러오기 `.catch()` 추가 |
+| `package.json` | `axios` 1.15.2 → 1.20.0 (HIGH 취약점 해소) |
+| `app.json` | 앱 이름 한글화, 번들 ID·패키지명·버전코드 추가 |
+
+---
+
+## [2026-09-10] BusinessHoursScreen("바로가기") 링크 노출 조건 오류 + 식당 확정 시 반영 안 되는 문제
+
+### 배경
+Expo Go로 실기기 확인 중 발견. `BusinessHoursScreen.tsx`가 `dayPlans`의 모든 항목에 예외 없이 링크 버튼을 붙이고 있었음:
+- "숙소 출발"·"숙소 복귀"·"공항 출발"(`accommodation`)과 "이동"(`move`)은 실제 장소명이 아니라 라벨일 뿐인데도 `SEARCH_URL(item.name)`으로 "숙소 출발 제주" 같은 의미 없는 카카오맵 검색 링크가 걸림
+- `TimelineScreen`에서 사용자가 "수정" 버튼으로 점심/저녁 식당을 특정 식당 하나로 확정해도(`item.options`가 1개짜리 배열이 됨), `BusinessHoursScreen`은 그 사실을 전혀 반영하지 않고 계속 제목을 "점심 식사"/"저녁 식사"로만 표시 — 정작 확정된 식당 이름과 그 식당으로의 링크가 안 보임
+
+원인은 `BusinessHoursScreen`이 `item.type`이나 `item.options` 상태를 구분하지 않고 모든 행을 똑같이 렌더링했기 때문. 참고로 확정된 식당 데이터 자체는 이미 `TimelineScreen`이 `navigation.navigate('BusinessHours', { schedule: { ...schedule, dayPlans } })`로 최신 `dayPlans`를 넘겨주고 있어 정상 전달되고 있었음 — 문제는 전적으로 표시 로직에 있었음.
+
+### 결정
+- 링크 버튼은 실제 장소를 가리킬 때만 노출: `spot` 타입, 그리고 `meal` 타입 중 `options.length === 1`(식당이 하나로 확정된 경우)만 표시. `move`·`accommodation`과 아직 후보가 여러 개인(미확정) `meal`은 링크 없음
+- 식당이 확정된 `meal` 항목은 기존 제목("점심 식사"/"저녁 식사") 아래에 확정된 식당 이름을 별도 줄로 표시하고, 링크도 그 식당 이름으로 카카오맵 검색되도록 변경
+
+### 변경 내용
+
+#### `src/screens/BusinessHoursScreen.tsx`
+```tsx
+// 식당이 확정된 식사(옵션 1개)만 실제 장소로 취급 — 후보가 여러 개면 아직 미확정 상태
+const chosenRestaurant = item.type === 'meal' && item.options?.length === 1 ? item.options[0] : null;
+// '이동'·'숙소 출발/복귀' 등은 실제 장소가 아니라 검색 링크가 무의미하므로 표시하지 않음
+const showLink = item.type === 'spot' || !!chosenRestaurant;
+const url = item.linkUrl ?? SEARCH_URL(chosenRestaurant ?? item.name);
+```
+- 확정된 식당명은 `itemRestaurant` 스타일(주황, `colors.warning`)로 제목 아래에 표시 — `TimelineScreen`의 `itemMealOpts`와 동일한 색상 계열로 통일
+
+### 검증 (Expo web + Playwright로 전체 플로우 재현)
+- 픽스 전: "숙소 출발", "이동" 행에도 링크 버튼 노출 확인 (버그 재현)
+- 명소(스팟) 행: 링크 버튼 정상 유지
+- 미확정 식사(후보 3개, 예: "별도봉오리사냥 / 우당도서관 구내식당 / 일품순두부 화북점"): 링크 버튼 없음, 제목 "점심 식사"만 표시
+- `TimelineScreen`에서 "별도봉오리사냥"으로 확정 후 "영업시간 확인" 재진입 → "점심 식사" 아래 "별도봉오리사냥" 표시 + 링크 버튼 정상 생성 확인
+- `tsc --noEmit` 통과, 콘솔 에러 0건
+
+### 수정 파일 요약
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `src/screens/BusinessHoursScreen.tsx` | 링크 노출 조건을 `spot`/확정된 `meal`로 제한, 확정 식당명 표시 및 해당 식당으로 링크 연결 |
+
+---
+
 ## [2026-09-09] 명소 상세 페이지 신규 구현 (영업시간·전화번호) — 리뷰는 TourAPI 범위 밖
 
 ### 배경

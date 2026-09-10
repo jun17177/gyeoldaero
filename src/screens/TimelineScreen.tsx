@@ -9,6 +9,7 @@ import {
   StyleSheet,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ import { RootStackParamList, DayPlan, TimelineItem, TripSchedule } from '../type
 import { generateTimeline } from '../algorithms/generateTimeline';
 
 import { colors, spacing, radius } from '../constants/theme';
+import { ACCOMMODATION_LABEL } from '../constants/accommodations';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Timeline'>;
 type Route = RouteProp<RootStackParamList, 'Timeline'>;
@@ -40,11 +42,6 @@ const WEATHER_LABEL: Record<string, string> = {
 const THEME_LABEL: Record<string, string> = {
   healing: '힐링', activity: '액티비티', food: '미식',
   culture: '문화탐방', photo: '사진·감성', night: '야경·야간',
-};
-
-const ACCOM_LABEL: Record<string, string> = {
-  jejucity: '제주시', aewol: '애월', hallim: '한림',
-  jungmun: '중문', seogwipo: '서귀포', seongsan: '성산', custom: '직접입력',
 };
 
 function ItemIcon({ type, spotCategory }: { type: TimelineItem['type']; spotCategory?: string }) {
@@ -77,14 +74,23 @@ export default function TimelineScreen() {
     }
     let cancelled = false;
     setLoading(true);
-    generateTimeline(schedule).then(plans => {
-      if (!cancelled) {
-        setDayPlans(plans);
+    generateTimeline(schedule)
+      .then(plans => {
+        if (!cancelled) {
+          setDayPlans(plans);
+          setLoading(false);
+        }
+      })
+      .catch(e => {
+        // 실패해도 로딩 화면엔 빠져나갈 수단이 없으므로 이전 화면으로 되돌려준다
+        console.error('[Timeline] 일정 생성 실패:', e);
+        if (cancelled) return;
         setLoading(false);
-      }
-    });
+        Alert.alert('일정 생성 실패', '일정을 만들지 못했어요. 다시 시도해 주세요.');
+        navigation.goBack();
+      });
     return () => { cancelled = true; };
-  }, [schedule]);
+  }, [schedule, navigation]);
 
   const handleDeleteSpot = () => {
     if (!deleteTarget) return;
@@ -227,7 +233,7 @@ export default function TimelineScreen() {
             <Text style={styles.tagText}>명소 {schedule.spots.length}곳</Text>
           </View>
           <View style={styles.tag}>
-            <Text style={styles.tagText}>{ACCOM_LABEL[schedule.accommodation]}</Text>
+            <Text style={styles.tagText}>{ACCOMMODATION_LABEL[schedule.accommodation]}</Text>
           </View>
         </ScrollView>
 

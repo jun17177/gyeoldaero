@@ -7,6 +7,7 @@ import {
   StyleSheet,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -112,17 +113,23 @@ export default function WeatherScreen() {
       ? forecast[selectedStart]?.date
       : undefined;
 
-    // 날씨 때문에 일정이 늘어난 경우, 늘어난 일수에 맞춰 타임라인을 다시 생성 — 그렇지 않으면
-    // days만 늘어나고 실제 하루하루 일정 내용(dayPlans)은 원래 기간 그대로 남는 불일치가 생김
-    const needsRegenerate = withDate && worstFactor > 1.0;
-    const dayPlans = needsRegenerate
-      ? await generateTimeline(schedule, worstFactor)
-      : schedule.dayPlans;
-    const days = needsRegenerate ? dayPlans!.length : (withDate ? adjustedDays : schedule.days);
+    try {
+      // 날씨 때문에 일정이 늘어난 경우, 늘어난 일수에 맞춰 타임라인을 다시 생성 — 그렇지 않으면
+      // days만 늘어나고 실제 하루하루 일정 내용(dayPlans)은 원래 기간 그대로 남는 불일치가 생김
+      const needsRegenerate = withDate && worstFactor > 1.0;
+      const dayPlans = needsRegenerate
+        ? await generateTimeline(schedule, worstFactor)
+        : schedule.dayPlans;
+      const days = needsRegenerate ? dayPlans!.length : (withDate ? adjustedDays : schedule.days);
 
-    await saveSchedule({ ...schedule, name: scheduleName, dayPlans, days, startDate });
-    setSaving(false);
-    navigation.navigate('SavedList');
+      await saveSchedule({ ...schedule, name: scheduleName, dayPlans, days, startDate });
+      navigation.navigate('SavedList');
+    } catch (e) {
+      console.error('[Weather] 일정 저장 실패:', e);
+      Alert.alert('저장 실패', '일정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const selectedEndIdx = selectedStart !== null ? selectedStart + tripDays - 1 : null;

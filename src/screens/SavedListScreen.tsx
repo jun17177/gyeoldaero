@@ -49,7 +49,9 @@ export default function SavedListScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAllSchedules().then(setSchedules);
+      loadAllSchedules()
+        .then(setSchedules)
+        .catch(e => console.error('[SavedList] 일정 불러오기 실패:', e));
     }, [])
   );
 

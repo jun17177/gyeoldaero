@@ -35,6 +35,9 @@ yarn-error.*
 
 # API keys (do not commit)
 src/constants/apiKeys.ts
+# 키 값이 적힌 설정 가이드 — 저장소 안으로 옮겨져 실제 키가 커밋된 적이 있어 차단
+API_설정_가이드.md
+API_*_가이드.md
 
 # typescript
 *.tsbuildinfo
