@@ -125,7 +125,7 @@ export default function TimelineScreen() {
   const formatDays = () => {
     const d = schedule.days;
     if (d <= 1) return '당일치기';
-    return `${d}박 ${d + 1}일`;
+    return `${d - 1}박 ${d}일`;
   };
 
   const renderItem = (day: number, item: TimelineItem, idx: number, isLast: boolean) => {
