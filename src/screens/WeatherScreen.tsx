@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, SkyCondition } from '../types';
 import { colors, spacing, radius, shadows } from '../constants/theme';
-import { fetchWeatherForecast, WeatherDay, SkyCondition } from '../api/weatherApi';
+import { fetchWeatherForecast, WeatherDay } from '../api/weatherApi';
 import { saveSchedule } from '../storage/scheduleStorage';
-import { calcTripDays } from '../algorithms/timeBudget';
-import { generateTimeline } from '../algorithms/generateTimeline';
+import { countTripDays } from '../algorithms/generateTimeline';
+import { PlannedTrip, planTrip } from '../algorithms/planTrip';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Weather'>;
 type Route = RouteProp<RootStackParamList, 'Weather'>;
@@ -33,7 +33,14 @@ const WEATHER_META: Record<
   snowy:  { icon: 'snow',         label: '눈',   color: '#93C5FD', bg: '#F0F9FF' },
 };
 
+const MOCK_META: (typeof WEATHER_META)[SkyCondition] = {
+  icon: 'help-circle-outline', label: '예보 없음', color: colors.textMuted, bg: colors.background,
+};
+
 const DAY_KR = ['일', '월', '화', '수', '목', '금', '토'];
+
+// 날짜를 연달아 바꿀 때마다 AI 요청이 나가지 않도록, 선택이 잠깐 멈췄을 때만 미리 재계획을 시작
+const REPLAN_DEBOUNCE_MS = 800;
 
 const WEATHER_FACTOR: Record<SkyCondition, number> = {
   sunny: 1.0,
@@ -76,23 +83,18 @@ export default function WeatherScreen() {
 
   const tripDays = schedule.days;
 
+  // 예시(가짜) 예보는 일정 조정에 쓰지 않는다
   const worstFactor = useMemo(() => {
     if (selectedStart === null || forecast.length === 0) return 1.0;
-    const range = forecast.slice(selectedStart, selectedStart + tripDays);
-    return Math.max(...range.map(d => WEATHER_FACTOR[d.condition]));
+    const range = forecast.slice(selectedStart, selectedStart + tripDays).filter(d => !d.isMock);
+    return Math.max(1.0, ...range.map(d => WEATHER_FACTOR[d.condition]));
   }, [selectedStart, forecast, tripDays]);
+
+  const mockCount = forecast.filter(d => d.isMock).length;
 
   const adjustedDays = useMemo(() => {
     if (worstFactor === 1.0) return schedule.days;
-    return calcTripDays({
-      spots: schedule.spots,
-      startTime: schedule.settings.startTime,
-      endTime: schedule.settings.endTime,
-      firstDayArrival: schedule.settings.firstDayArrival,
-      lastDayDeparture: schedule.settings.lastDayDeparture,
-      luggage: schedule.settings.luggage,
-      weatherFactor: worstFactor,
-    });
+    return countTripDays(schedule, worstFactor);
   }, [worstFactor, schedule]);
 
   useEffect(() => {
@@ -100,6 +102,39 @@ export default function WeatherScreen() {
       .then(setForecast)
       .finally(() => setLoading(false));
   }, []);
+
+  // 날씨가 나빠 재계획이 필요한 구간을 고르면 저장 버튼을 누르기 전에 AI 요청을 미리 시작 — 저장할 때 기다리는 시간을 줄이기 위함
+  const replanRef = useRef<{ start: number; promise: Promise<PlannedTrip> } | null>(null);
+
+  // 첫날부터 이어지는 실제 예보만 AI에 넘긴다 — 예시(가짜) 예보를 믿고 일정을 바꾸면 안 되므로
+  const knownWeatherFrom = (start: number): SkyCondition[] | undefined => {
+    const known: SkyCondition[] = [];
+    for (const day of forecast.slice(start)) {
+      if (day.isMock) break;
+      known.push(day.condition);
+    }
+    return known.length > 0 ? known : undefined;
+  };
+
+  const startReplan = (start: number): Promise<PlannedTrip> => {
+    if (replanRef.current?.start !== start) {
+      replanRef.current = {
+        start,
+        promise: planTrip(schedule, {
+          weatherFactor: worstFactor,
+          weatherByDay: knownWeatherFrom(start),
+        }),
+      };
+    }
+    return replanRef.current.promise;
+  };
+
+  useEffect(() => {
+    if (selectedStart === null || worstFactor <= 1.0) return;
+    const timer = setTimeout(() => startReplan(selectedStart), REPLAN_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStart, worstFactor]);
 
   const inRange    = (i: number) => selectedStart !== null && i >= selectedStart && i < selectedStart + tripDays;
   const isStart    = (i: number) => selectedStart !== null && i === selectedStart;
@@ -112,15 +147,24 @@ export default function WeatherScreen() {
       ? forecast[selectedStart]?.date
       : undefined;
 
-    // 날씨 때문에 일정이 늘어난 경우, 늘어난 일수에 맞춰 타임라인을 다시 생성 — 그렇지 않으면
-    // days만 늘어나고 실제 하루하루 일정 내용(dayPlans)은 원래 기간 그대로 남는 불일치가 생김
+    // 날씨가 나쁘면 동선을 다시 짠다 — 늘어난 일수에 맞춰 dayPlans를 새로 만들지 않으면 days와 실제 일정이 어긋나고,
+    // AI에겐 날짜별 예보를 넘겨 비·눈 오는 날에 실내 명소를 배치하게 한다
     const needsRegenerate = withDate && worstFactor > 1.0;
-    const dayPlans = needsRegenerate
-      ? await generateTimeline(schedule, worstFactor)
-      : schedule.dayPlans;
-    const days = needsRegenerate ? dayPlans!.length : (withDate ? adjustedDays : schedule.days);
+    const replanned = needsRegenerate && selectedStart !== null ? await startReplan(selectedStart) : null;
 
-    await saveSchedule({ ...schedule, name: scheduleName, dayPlans, days, startDate });
+    await saveSchedule({
+      ...schedule,
+      name: scheduleName,
+      startDate,
+      ...(replanned
+        ? {
+            days: replanned.days,
+            dayPlans: replanned.dayPlans,
+            planSource: replanned.planSource,
+            aiReason: replanned.aiReason,
+          }
+        : { days: withDate ? adjustedDays : schedule.days }),
+    });
     setSaving(false);
     navigation.navigate('SavedList');
   };
@@ -172,6 +216,17 @@ export default function WeatherScreen() {
         <Text style={styles.guideText}>출발 날짜를 탭하면 여행 기간이 자동으로 표시됩니다</Text>
       </View>
 
+      {!loading && mockCount > 0 && (
+        <View style={styles.weatherAdjustBanner}>
+          <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
+          <Text style={styles.weatherAdjustText}>
+            {mockCount === forecast.length
+              ? '실제 예보를 불러오지 못했어요. 날씨에 따른 일정 조정은 하지 않아요.'
+              : `${mockCount}일은 예보가 없어 일정 조정에 반영하지 않아요.`}
+          </Text>
+        </View>
+      )}
+
       {/* 날씨 일수 조정 배너 */}
       {!loading && selectedStart !== null && adjustedDays !== schedule.days && (
         <View style={styles.weatherAdjustBanner}>
@@ -194,7 +249,7 @@ export default function WeatherScreen() {
         >
           {forecast.map((day, idx) => {
             const d       = parseDate(day.date);
-            const meta    = WEATHER_META[day.condition];
+            const meta    = day.isMock ? MOCK_META : WEATHER_META[day.condition];
             const active  = inRange(idx);
             const start   = isStart(idx);
             const end     = isEnd(idx);
@@ -254,10 +309,10 @@ export default function WeatherScreen() {
                 {/* 기온 */}
                 <View style={styles.tempBlock}>
                   <Text style={[styles.tMax, active && styles.textWhite]}>
-                    {day.tMax}°
+                    {day.isMock ? '-' : `${day.tMax}°`}
                   </Text>
                   <Text style={[styles.tMin, active && styles.textWhiteMuted]}>
-                    {day.tMin}°
+                    {day.isMock ? '-' : `${day.tMin}°`}
                   </Text>
                 </View>
 

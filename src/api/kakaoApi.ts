@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { KAKAO_API_KEY } from '../constants/apiKeys';
 import { Spot } from '../types';
+import { isJejuCoord } from '../constants/jejuBounds';
 
 const CATEGORY_SEARCH_URL = 'https://dapi.kakao.com/v2/local/search/category.php';
 const RESTAURANT_CATEGORY_CODE = 'FD6'; // 음식점
@@ -93,15 +94,17 @@ export async function fetchJejuCafes(): Promise<Spot[]> {
   const spots: Spot[] = [];
 
   for (const doc of results.flat()) {
-    if (seen.has(doc.id)) continue;
+    const lat = parseFloat(doc.y);
+    const lon = parseFloat(doc.x);
+    if (seen.has(doc.id) || !isJejuCoord(lat, lon)) continue;
     seen.add(doc.id);
     spots.push({
       id: `kakao-${doc.id}`,
       name: doc.place_name,
       category: 'food',
       foodType: 'cafe',
-      lat: parseFloat(doc.y) || 0,
-      lon: parseFloat(doc.x) || 0,
+      lat,
+      lon,
       durationMinutes: 60,
       emoji: categoryEmoji(),
       tags: [],

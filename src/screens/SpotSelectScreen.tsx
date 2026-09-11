@@ -19,9 +19,10 @@ import { RootStackParamList, Spot, TripSchedule } from '../types';
 import { jejuSpots } from '../data/jejuSpots';
 import { fetchJejuSpotsByCategory } from '../api/tourApi';
 import { fetchJejuCafes } from '../api/kakaoApi';
-import { calcTripDays } from '../algorithms/timeBudget';
+import { countTripDays } from '../algorithms/generateTimeline';
 import { nearestNeighbor } from '../algorithms/nearestNeighbor';
 import { colors, spacing, radius, shadows } from '../constants/theme';
+import { ACCOMMODATION_COORDS } from '../constants/accommodation';
 
 type Nav = StackNavigationProp<RootStackParamList, 'SpotSelect'>;
 type Route = RouteProp<RootStackParamList, 'SpotSelect'>;
@@ -35,16 +36,6 @@ const CATEGORY_ICON: Record<string, IoniconsName> = {
   food:     'restaurant-outline',
   photo:    'camera-outline',
   night:    'moon-outline',
-};
-
-const ACCOM_COORDS: Record<string, { lat: number; lon: number }> = {
-  jejucity: { lat: 33.4996, lon: 126.5312 }, // 제주시 (공항 포함)
-  aewol:    { lat: 33.4600, lon: 126.3100 }, // 애월
-  hallim:   { lat: 33.3925, lon: 126.2376 }, // 한림 (서쪽 해안)
-  jungmun:  { lat: 33.2453, lon: 126.4126 }, // 중문 리조트
-  seogwipo: { lat: 33.2541, lon: 126.5600 }, // 서귀포 시내
-  seongsan: { lat: 33.4390, lon: 126.9229 }, // 성산 (동쪽)
-  custom:   { lat: 33.4996, lon: 126.5312 },
 };
 
 const ACCOM_OPTIONS: { id: TripSchedule['accommodation']; label: string }[] = [
@@ -74,13 +65,6 @@ const ALL_FILTER_OPTIONS: { id: Spot['category'] | 'all'; label: string }[] = [
   { id: 'photo',    label: '사진·감성' },
   { id: 'night',    label: '야경' },
 ];
-
-const SEASON_WEATHER_FACTOR: Record<string, number> = {
-  spring: 1.0,
-  summer: 1.1,  // 더위로 이동·활동 시간 증가
-  fall:   1.0,
-  winter: 1.15, // 추위·방한 준비로 이동 시간 증가
-};
 
 // 계절에 맞는 명소에 높은 점수 부여 → 정렬에 사용
 function seasonScore(spot: Spot, season: string): number {
@@ -180,20 +164,12 @@ export default function SpotSelectScreen() {
 
   const days = useMemo(() => {
     if (selected.length === 0) return 0;
-    return calcTripDays({
-      spots: selected,
-      startTime: settings.startTime,
-      endTime: settings.endTime,
-      firstDayArrival: settings.firstDayArrival,
-      lastDayDeparture: settings.lastDayDeparture,
-      luggage: settings.luggage,
-      weatherFactor: SEASON_WEATHER_FACTOR[settings.season] ?? 1.0,
-    });
-  }, [selected, settings]);
+    return countTripDays({ spots: selected, settings, accommodation });
+  }, [selected, settings, accommodation]);
 
   const handleOptimize = () => {
     if (selected.length === 0) return;
-    const accomCoord = ACCOM_COORDS[accommodation];
+    const accomCoord = ACCOMMODATION_COORDS[accommodation];
     const orderedSpots = nearestNeighbor(selected, accomCoord.lat, accomCoord.lon);
     const schedule: TripSchedule = {
       id: Date.now().toString(),

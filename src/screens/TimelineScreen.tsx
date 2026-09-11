@@ -15,9 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, DayPlan, TimelineItem, TripSchedule } from '../types';
-import { generateTimeline } from '../algorithms/generateTimeline';
-
+import { PlannedTrip, planWithAi, planWithAlgorithm } from '../algorithms/planTrip';
 import { colors, spacing, radius } from '../constants/theme';
+import { ACCOMMODATION_LABEL } from '../constants/accommodation';
+import { AI_MAX_SPOTS, PLANNER_API_URL } from '../constants/config';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Timeline'>;
 type Route = RouteProp<RootStackParamList, 'Timeline'>;
@@ -33,18 +34,9 @@ const CATEGORY_ICON: Record<string, IoniconsName> = {
   night:    'moon-outline',
 };
 
-const WEATHER_LABEL: Record<string, string> = {
-  sunny: '맑음', cloudy: '흐림', rainy: '비', snowy: '눈',
-};
-
 const THEME_LABEL: Record<string, string> = {
   healing: '힐링', activity: '액티비티', food: '미식',
   culture: '문화탐방', photo: '사진·감성', night: '야경·야간',
-};
-
-const ACCOM_LABEL: Record<string, string> = {
-  jejucity: '제주시', aewol: '애월', hallim: '한림',
-  jungmun: '중문', seogwipo: '서귀포', seongsan: '성산', custom: '직접입력',
 };
 
 function ItemIcon({ type, spotCategory }: { type: TimelineItem['type']; spotCategory?: string }) {
@@ -66,25 +58,54 @@ export default function TimelineScreen() {
   const [scheduleName, setScheduleName] = useState('제주 여행');
   const [dayPlans, setDayPlans] = useState<DayPlan[]>(schedule.dayPlans ?? []);
   const [loading, setLoading] = useState(!schedule.dayPlans?.length);
+  const [aiPending, setAiPending] = useState(false);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [mealEditTarget, setMealEditTarget] = useState<{ day: number; itemIdx: number; options: string[] } | null>(null);
 
+  // 최초 진입과 명소 삭제 때만 다시 계획한다. 계획 결과를 schedule에 합쳐도 spots는 그대로라 재실행되지 않음
   useEffect(() => {
-    if (schedule.dayPlans?.length) {
-      setDayPlans(schedule.dayPlans);
-      setLoading(false);
-      return;
-    }
+    if (schedule.dayPlans?.length) return;
+
     let cancelled = false;
+    let aiApplied = false;
+    const apply = (plan: PlannedTrip) => {
+      setSchedule(prev => ({
+        ...prev,
+        days: plan.days,
+        dayPlans: plan.dayPlans,
+        planSource: plan.planSource,
+        aiReason: plan.aiReason,
+      }));
+      setDayPlans(plan.dayPlans);
+      setLoading(false);
+    };
+
+    const aiEnabled = Boolean(PLANNER_API_URL) && schedule.spots.length > 0;
+    const tooManySpots = schedule.spots.length > AI_MAX_SPOTS;
     setLoading(true);
-    generateTimeline(schedule).then(plans => {
-      if (!cancelled) {
-        setDayPlans(plans);
-        setLoading(false);
+    setAiPending(aiEnabled && !tooManySpots);
+    setAiNotice(aiEnabled && tooManySpots
+      ? `명소가 ${AI_MAX_SPOTS}곳을 넘어 AI 추천 없이 기본 계산으로 짰어요.`
+      : null);
+    // AI는 수 초 이상 걸리므로 요청을 먼저 띄워두고, 그동안 1초 안팎이면 나오는 알고리즘 일정을 먼저 보여준다
+    const aiRequest = planWithAi(schedule);
+    planWithAlgorithm(schedule).then(plan => {
+      if (!cancelled && !aiApplied) apply(plan);
+    });
+    aiRequest.then(plan => {
+      if (cancelled) return;
+      setAiPending(false);
+      if (plan) {
+        aiApplied = true;
+        apply(plan);
+      } else if (aiEnabled && !tooManySpots) {
+        setAiNotice('AI 추천을 받지 못해 기본 계산으로 짰어요.');
       }
     });
     return () => { cancelled = true; };
-  }, [schedule]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedule.spots]);
 
   const handleDeleteSpot = () => {
     if (!deleteTarget) return;
@@ -119,12 +140,14 @@ export default function TimelineScreen() {
   const formatDays = () => {
     const d = schedule.days;
     if (d <= 1) return '당일치기';
-    return `${d}박 ${d + 1}일`;
+    return `${d - 1}박 ${d}일`;
   };
 
   const renderItem = (day: number, item: TimelineItem, idx: number, isLast: boolean) => {
     const matchedSpot = schedule.spots.find(s => s.name === item.name);
-    const canEdit = item.type === 'spot' || (item.type === 'meal' && (item.options?.length ?? 0) > 1);
+    // AI 일정이 도착하면 화면 일정이 통째로 바뀌므로, 그 전에 한 수정이 사라지지 않도록 대기 중엔 수정을 막는다
+    const canEdit = !aiPending &&
+      (item.type === 'spot' || (item.type === 'meal' && (item.options?.length ?? 0) > 1));
 
     const handleEditPress = () => {
       if (item.type === 'spot' && matchedSpot) {
@@ -197,7 +220,9 @@ export default function TimelineScreen() {
         <View style={styles.topSection}>
           <View style={styles.topLeft}>
             <Text style={styles.daysTitle}>{formatDays()}</Text>
-            <Text style={styles.daysSub}>AI 추천 여행 기간</Text>
+            <Text style={styles.daysSub}>
+              {schedule.planSource === 'ai' ? 'AI 추천 여행 기간' : '자동 계산 여행 기간'}
+            </Text>
           </View>
           <TouchableOpacity
             style={styles.businessBtn}
@@ -221,22 +246,41 @@ export default function TimelineScreen() {
             </View>
           ))}
           <View style={styles.tag}>
-            <Text style={styles.tagText}>{WEATHER_LABEL[schedule.settings.weather]}</Text>
-          </View>
-          <View style={styles.tag}>
             <Text style={styles.tagText}>명소 {schedule.spots.length}곳</Text>
           </View>
           <View style={styles.tag}>
-            <Text style={styles.tagText}>{ACCOM_LABEL[schedule.accommodation]}</Text>
+            <Text style={styles.tagText}>{ACCOMMODATION_LABEL[schedule.accommodation]}</Text>
           </View>
         </ScrollView>
+
+        {aiPending ? (
+          <View style={styles.aiReasonBox}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.aiReasonText}>
+              AI가 더 나은 동선과 기간을 찾고 있어요. 준비되면 일정이 바뀌어요.
+            </Text>
+          </View>
+        ) : schedule.planSource === 'ai' && schedule.aiReason ? (
+          <View style={styles.aiReasonBox}>
+            <Ionicons name="sparkles-outline" size={15} color={colors.primary} style={styles.aiReasonIcon} />
+            <Text style={styles.aiReasonText}>{schedule.aiReason}</Text>
+          </View>
+        ) : aiNotice ? (
+          <View style={styles.aiReasonBox}>
+            <Ionicons name="information-circle-outline" size={15} color={colors.textMuted} style={styles.aiReasonIcon} />
+            <Text style={styles.aiNoticeText}>{aiNotice}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.divider} />
 
         {/* 타임라인 */}
         {dayPlans.map(plan => (
           <View key={plan.day} style={styles.daySection}>
-            <Text style={styles.dayLabel}>DAY {plan.day}</Text>
+            <View style={styles.dayHeader}>
+              <Text style={styles.dayLabel}>DAY {plan.day}</Text>
+              {plan.note ? <Text style={styles.dayNote}>{plan.note}</Text> : null}
+            </View>
             {plan.items.map((item, idx) =>
               renderItem(plan.day, item, idx, idx === plan.items.length - 1)
             )}
@@ -365,15 +409,29 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   tagText: { fontSize: 12, color: colors.primary, fontWeight: '500' },
+  aiReasonBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.md,
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  aiReasonIcon: { marginTop: 2 },
+  aiReasonText: { flex: 1, fontSize: 13, lineHeight: 19, color: colors.text },
+  aiNoticeText: { flex: 1, fontSize: 12, lineHeight: 18, color: colors.textMuted },
   divider: { height: 1, backgroundColor: colors.border, marginHorizontal: spacing.xl, marginTop: spacing.md },
   daySection: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+  dayHeader: { marginBottom: spacing.md },
   dayLabel: {
     fontSize: 12,
     fontWeight: '700',
     color: colors.textMuted,
     letterSpacing: 1,
-    marginBottom: spacing.md,
   },
+  dayNote: { fontSize: 13, lineHeight: 18, color: colors.text, marginTop: 4 },
   timelineRow: {
     flexDirection: 'row',
     minHeight: 56,

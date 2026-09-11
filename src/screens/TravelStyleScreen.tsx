@@ -63,7 +63,6 @@ export default function TravelStyleScreen() {
     navigation.navigate('DetailCondition', {
       settings: {
         themes: themes.length > 0 ? themes : ['healing'],
-        weather: 'sunny',
         season,
       },
     });

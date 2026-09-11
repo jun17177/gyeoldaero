@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { TOUR_API_KEY } from '../constants/apiKeys';
 import { Spot } from '../types';
+import { isJejuCoord } from '../constants/jejuBounds';
 
 const BASE_URL = 'https://apis.data.go.kr/B551011/KorService2';
 const AREA_CODE_JEJU = '39';
@@ -100,7 +101,7 @@ async function fetchByTypeId(contentTypeId: string): Promise<Spot[]> {
     arrange: 'P',
   });
   return items
-    .filter(item => parseFloat(item.mapy) !== 0 && parseFloat(item.mapx) !== 0)
+    .filter(item => isJejuCoord(parseFloat(item.mapy), parseFloat(item.mapx)))
     .map(mapToSpot);
 }
 
@@ -141,7 +142,7 @@ export async function fetchNearbySpots(
     arrange: 'S', // 거리순
   });
   return items
-    .filter(item => parseFloat(item.mapy) !== 0 && parseFloat(item.mapx) !== 0)
+    .filter(item => isJejuCoord(parseFloat(item.mapy), parseFloat(item.mapx)))
     .map(mapToSpot);
 }
 

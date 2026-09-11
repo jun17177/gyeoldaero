@@ -70,6 +70,34 @@ npx expo start --tunnel
 
 ---
 
+### 5. AI 동선 서버 실행 (선택)
+
+Claude가 날짜별 동선과 여행 기간을 추천하는 기능은 별도 서버(`server/`)를 거칩니다. Claude API 키를 앱에 넣으면 누구나 뽑아낼 수 있어서 키는 서버에만 둡니다. **서버를 켜지 않아도 앱은 기존 알고리즘으로 정상 동작합니다.**
+
+```bash
+cd server
+npm install
+cp .env.example .env   # .env에 ANTHROPIC_API_KEY 입력 (절대 커밋 금지)
+npm run dev            # http://localhost:8787 (Node 20.6 이상 필요)
+```
+
+앱이 서버를 찾도록 프로젝트 루트에서 `.env.local`을 만들고 서버 주소를 적습니다.
+
+```bash
+cp .env.example .env.local
+```
+
+| 실행 환경 | `EXPO_PUBLIC_PLANNER_API_URL` 예시 |
+|---|---|
+| iOS 시뮬레이터 | `http://localhost:8787` |
+| Android 에뮬레이터 | `http://10.0.2.2:8787` |
+| 휴대폰 Expo Go (PC와 같은 와이파이) | `http://<PC의 LAN IP>:8787` |
+
+> `--tunnel`로 다른 네트워크에서 접속하면 휴대폰이 PC의 서버에 직접 닿지 않습니다. 이때는 서버도 터널 도구(ngrok, cloudflared 등)로 열거나 서버를 배포해야 합니다.  
+> `.env.local`을 바꾼 뒤에는 `npx expo start -c`로 캐시를 지우고 다시 실행하세요.
+
+---
+
 ## 폴더 구조
 
 ```

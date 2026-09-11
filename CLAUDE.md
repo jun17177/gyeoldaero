@@ -72,7 +72,7 @@ export const colors = {
 | S0 | `SavedListScreen` | 앱 진입 첫 화면. 저장 일정 리스트 또는 빈 상태+슬로건 |
 | S1 | `SplashScreen` | 앱 로딩 스플래시 |
 | S2 | `HomeScreen` | 직접 설정 / 자동 설정 선택 |
-| S3a | `TravelStyleScreen` | 테마(6종)·날씨·계절 선택 |
+| S3a | `TravelStyleScreen` | 테마(6종)·계절 선택 (날씨는 출발일 선택 후 예보로) |
 | S3b | `DetailConditionScreen` | 활동시간·인원·예산·짐무게·첫날도착·마지막날출발 |
 | S4 | `SpotSelectScreen` | 명소 카드 담기, 기간 자동 산출, 숙소 선택 |
 | S5 | `TimelineScreen` | 최적 일정 타임라인, 맛집 선택, 저장 |
@@ -217,7 +217,6 @@ export interface TripSchedule {
 // 여행 설정
 export interface TripSettings {
   themes: ('healing' | 'activity' | 'food' | 'culture' | 'photo' | 'night')[];
-  weather: 'sunny' | 'cloudy' | 'rainy' | 'snowy';
   season: 'spring' | 'summer' | 'fall' | 'winter';
   startTime: number;           // 활동 시작 시각
   endTime: number;             // 활동 종료 시각

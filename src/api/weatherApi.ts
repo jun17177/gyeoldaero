@@ -1,13 +1,15 @@
 import axios from 'axios';
 import { WEATHER_API_KEY } from '../constants/apiKeys';
 
-export type SkyCondition = 'sunny' | 'cloudy' | 'rainy' | 'snowy';
+import { SkyCondition } from '../types';
 
 export interface WeatherDay {
   date: string; // YYYYMMDD
   condition: SkyCondition;
   tMin: number;
   tMax: number;
+  // 예보를 받지 못해 예시 값으로 채운 날. 실제 예보처럼 보이거나 일정 조정에 쓰이면 안 됨
+  isMock?: boolean;
 }
 
 const SHORT_TERM_URL =
@@ -95,6 +97,7 @@ function buildMockForecast(): WeatherDay[] {
       condition: MOCK_PATTERN[i % MOCK_PATTERN.length],
       tMin: base,
       tMax: base + 8,
+      isMock: true,
     };
   });
 }
@@ -169,7 +172,7 @@ async function fetchShortTerm(): Promise<WeatherDay[]> {
       };
     }
     const base = 14 + (i % 3);
-    return { date: dateStr, condition: MOCK_PATTERN[i % MOCK_PATTERN.length], tMin: base, tMax: base + 8 };
+    return { date: dateStr, condition: MOCK_PATTERN[i % MOCK_PATTERN.length], tMin: base, tMax: base + 8, isMock: true };
   });
 }
 
@@ -206,7 +209,8 @@ async function fetchMidTerm(): Promise<WeatherDay[]> {
     const tMin = Number(ta[`taMin${i}`] ?? 14);
     const tMax = Number(ta[`taMax${i}`] ?? 22);
 
-    return { date: dateStr, condition, tMin, tMax };
+    // 예보 문구가 비어 있으면 midWfToCondition이 '맑음'으로 채우므로 실제 예보가 아님
+    return { date: dateStr, condition, tMin, tMax, isMock: !wfAm && !wfPm };
   });
 }
 

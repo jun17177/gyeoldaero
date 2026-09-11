@@ -27,11 +27,16 @@ export interface TripSchedule {
   settings: TripSettings;
   dayPlans?: DayPlan[];
   startDate?: string; // YYYYMMDD
+  // 동선·기간을 누가 정했는지. 화면의 "AI 추천" 표기를 실제와 맞추기 위함
+  planSource?: 'ai' | 'algorithm';
+  aiReason?: string; // AI가 이 기간을 추천한 이유
 }
+
+// 날씨는 여행 설정에서 고르지 않는다 — 출발일을 정한 뒤 예보(WeatherScreen)로만 알 수 있음
+export type SkyCondition = 'sunny' | 'cloudy' | 'rainy' | 'snowy';
 
 export interface TripSettings {
   themes: ('healing' | 'activity' | 'food' | 'culture' | 'photo' | 'night')[];
-  weather: 'sunny' | 'cloudy' | 'rainy' | 'snowy';
   season: 'spring' | 'summer' | 'fall' | 'winter';
   startTime: number;
   endTime: number;
@@ -55,6 +60,23 @@ export interface TimelineItem {
 export interface DayPlan {
   day: number;
   items: TimelineItem[];
+  note?: string; // AI가 요약한 그날 동선
+}
+
+// server/src/schema.ts의 routePlanRequestSchema와 형태를 맞춰야 함
+export interface RoutePlanRequest {
+  spots: Pick<Spot, 'id' | 'name' | 'category' | 'durationMinutes' | 'tags' | 'foodType'>[];
+  settings: TripSettings;
+  accommodationLabel: string;
+  travelMinutes: number[][]; // [0] = 숙소, [k] = spots[k - 1]. 분 단위 추정치
+  baseline: { days: number; order: string[] };
+  slackFactor: number; // 짐 무게 × 날씨 보정계수
+  weatherByDay?: SkyCondition[];
+}
+
+export interface AiRoutePlan {
+  days: { spotIds: string[]; note: string }[];
+  daysReason: string;
 }
 
 export type RootStackParamList = {

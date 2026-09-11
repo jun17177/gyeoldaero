@@ -137,7 +137,6 @@ export default function DetailConditionScreen() {
 
   const buildSettings = (): TripSettings => ({
     themes:            prevSettings.themes  ?? ['healing'],
-    weather:           prevSettings.weather ?? 'sunny',
     season:            prevSettings.season  ?? 'spring',
     startTime,
     endTime,

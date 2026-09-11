@@ -37,7 +37,15 @@
 - `haversine.ts` — GPS 두 좌표 간 거리 계산
 - `nearestNeighbor.ts` — TSP 최근접 이웃 경로 최적화
 - `timeBudget.ts` — 여행 일수 자동 산출, 교통수단 판별
-- `generateTimeline.ts` — DayPlan[] 자동 생성 (식사·이동 슬롯 포함)
+- `generateTimeline.ts` — DayPlan[] 자동 생성 (식사·이동 슬롯 포함). AI가 정한 날짜별 배정을 받으면 그대로 따름
+- `planTrip.ts` — 동선·기간 결정 진입점. `planWithAi`(Claude, 실패 시 null) / `planWithAlgorithm`. 타임라인은 알고리즘 일정을 먼저 보여주고 AI 일정이 오면 교체
+
+### AI 동선 서버 (server/)
+- Node + Express + `@anthropic-ai/sdk`. Claude API 키는 `server/.env`에만 둔다 — 앱 번들에 넣으면 누구나 추출 가능
+- 기본 모델 `claude-sonnet-5`, effort `low` (응답 속도 우선). `server/.env`의 `PLANNER_MODEL`·`PLANNER_EFFORT`로 변경
+- `POST /api/route-plan`: 명소·설정·이동시간 행렬을 받아 Claude(Structured Outputs)로 날짜별 배정·순서·기간을 받고, `feasibility.ts`로 가용시간·누락을 검증
+- 앱은 `.env.local`의 `EXPO_PUBLIC_PLANNER_API_URL`로 서버 주소를 받는다. 비어 있으면 AI 없이 동작
+- 요청 형태를 바꾸면 `server/src/schema.ts`와 `src/types/index.ts`의 `RoutePlanRequest`를 함께 수정
 
 ### 외부 API (미연동, 추후 구현 예정)
 - 한국관광공사 TourAPI — 명소 데이터 (`src/api/tourApi.ts`)
@@ -56,7 +64,7 @@ gyeoldaero/
 │   │   ├── SplashScreen.tsx       # S1  스플래시 (2.2초 후 자동 이동)
 │   │   ├── SavedListScreen.tsx    # S0  저장된 일정 목록
 │   │   ├── HomeScreen.tsx         # S2  홈 (직접/자동 설정 선택)
-│   │   ├── TravelStyleScreen.tsx  # S3a 테마·날씨·계절 선택
+│   │   ├── TravelStyleScreen.tsx  # S3a 테마·계절 선택 (날씨는 WeatherScreen에서 예보로)
 │   │   ├── DetailConditionScreen.tsx # S3b 시간대·인원·예산·짐 선택
 │   │   ├── SpotSelectScreen.tsx   # S4  명소 선택 + 기간 자동 산출
 │   │   ├── TimelineScreen.tsx     # S5  타임라인 결과 + 저장
@@ -68,19 +76,25 @@ gyeoldaero/
 │   │   ├── haversine.ts
 │   │   ├── nearestNeighbor.ts
 │   │   ├── timeBudget.ts
-│   │   └── generateTimeline.ts
-│   ├── api/                       # 외부 API (추후 구현)
+│   │   ├── generateTimeline.ts
+│   │   └── planTrip.ts            # AI 동선 요청 + 알고리즘 대체
+│   ├── api/                       # 외부 API
 │   │   ├── tourApi.ts
 │   │   ├── kakaoApi.ts
-│   │   └── weatherApi.ts
+│   │   ├── weatherApi.ts
+│   │   └── routePlanApi.ts        # AI 동선 서버 호출
 │   ├── storage/
 │   │   └── scheduleStorage.ts     # AsyncStorage CRUD
 │   ├── types/
 │   │   └── index.ts               # 모든 타입 정의
 │   ├── constants/
-│   │   └── theme.ts               # 컬러, spacing, radius, shadows
+│   │   ├── theme.ts               # 컬러, spacing, radius, shadows
+│   │   ├── accommodation.ts       # 숙소 권역 좌표·라벨
+│   │   └── config.ts              # AI 동선 서버 주소
 │   └── data/
 │       └── jejuSpots.ts           # 제주 명소 시드 데이터 28개
+├── server/                        # AI 동선 서버 (Claude API 키 보관)
+│   └── src/                       # index · planRoute · prompt · schema · feasibility
 └── app_des/                       # 디자인 시안 PNG
 ```
 
@@ -162,7 +176,6 @@ interface TripSchedule {
 
 interface TripSettings {
   themes: ('healing' | 'activity' | 'food' | 'culture' | 'photo' | 'night')[];
-  weather: 'sunny' | 'cloudy' | 'rainy' | 'snowy';
   season: 'spring' | 'summer' | 'fall' | 'winter';
   startTime: number;
   endTime: number;
@@ -204,6 +217,7 @@ interface DayPlan {
 | 한국관광공사 TourAPI 연동 | ⬜ 미구현 (API 키 필요) |
 | 카카오 Local API 연동 | ⬜ 미구현 (API 키 필요) |
 | 기상청 API 연동 | ⬜ 미구현 (API 키 필요) |
+| Claude AI 동선·기간 추천 | ✅ 완료 (server 실행 + Anthropic API 키 필요) |
 
 ---
 
