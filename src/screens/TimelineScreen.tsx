@@ -55,7 +55,8 @@ export default function TimelineScreen() {
 
   const [schedule, setSchedule] = useState<TripSchedule>(initialSchedule);
   const [saveModal, setSaveModal] = useState(false);
-  const [scheduleName, setScheduleName] = useState('제주 여행');
+  // 저장된 일정을 다시 저장할 때 원래 이름이 사라지지 않도록 일정의 이름으로 시작 (새 일정은 '제주 여행')
+  const [scheduleName, setScheduleName] = useState(initialSchedule.name || '제주 여행');
   const [dayPlans, setDayPlans] = useState<DayPlan[]>(schedule.dayPlans ?? []);
   const [loading, setLoading] = useState(!schedule.dayPlans?.length);
   const [aiPending, setAiPending] = useState(false);

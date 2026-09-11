@@ -131,16 +131,11 @@ function layoutDays(
         spot.category === 'food' && spot.foodType === 'restaurant' && openMeals.length > 0
           ? closestMeal(openMeals, arrival)
           : null;
-      // 식당은 식사 시간 전에 도착하면 그때까지 기다리므로, 가용시간 검사에 그 대기까지 포함한다
-      const stayEnd = asMeal
-        ? Math.max(arrival, MEAL_WINDOW[asMeal].earliest) + MEAL_MINUTES
-        : arrival + spot.durationMinutes;
-      const needed = stayEnd - cursor;
-
       if (!asMeal) {
+        const legEnd = arrival + spot.durationMinutes;
         const due = openMeals.find(m => {
           const w = MEAL_WINDOW[m];
-          return cursor >= w.earliest || (cursor >= w.earliest - EARLY_MEAL_MARGIN && cursor + needed > w.latest);
+          return cursor >= w.earliest || (cursor >= w.earliest - EARLY_MEAL_MARGIN && legEnd > w.latest);
         });
         if (due) {
           pushMeal(due);
@@ -148,8 +143,18 @@ function layoutDays(
         }
       }
 
+      // 이동 중에 식사 시간이 되면 도착해서 먼저 먹는다 — 안 그러면 긴 이동이 점심 시간을 통째로 건너뛰어 식사가 빠짐
+      const mealOnArrival = asMeal
+        ? null
+        : openMeals.find(m => arrival >= MEAL_WINDOW[m].earliest && arrival <= MEAL_WINDOW[m].latest) ?? null;
+      // 식당은 식사 시간 전에 도착하면 그때까지 기다리므로, 가용시간 검사에 그 대기까지 포함한다
+      const stayEnd = asMeal
+        ? Math.max(arrival, MEAL_WINDOW[asMeal].earliest) + MEAL_MINUTES
+        : arrival + (mealOnArrival ? MEAL_MINUTES : 0) + spot.durationMinutes;
+      const needed = stayEnd - cursor;
+
       if (slack !== undefined) {
-        const mealReserve = (openMeals.length - (asMeal ? 1 : 0)) * MEAL_MINUTES;
+        const mealReserve = (openMeals.length - (asMeal || mealOnArrival ? 1 : 0)) * MEAL_MINUTES;
         const fits = (cursor - dayStart + needed + mealReserve) * slack <= dayEnd - dayStart;
         // 빈 온전한 하루에도 안 들어가는 긴 명소(예: 한라산 등반)는 그냥 배치 —
         // 안 그러면 일수를 아무리 늘려도 자리가 없어 뒤따르는 명소까지 전부 누락됨
@@ -169,6 +174,12 @@ function layoutDays(
       if (asMeal) {
         pushMeal(asMeal, spot.name);
       } else {
+        if (mealOnArrival) {
+          // 식당 후보는 도착한 명소 근처에서 찾는다
+          lastLat = spot.lat;
+          lastLon = spot.lon;
+          pushMeal(mealOnArrival);
+        }
         items.push({
           type: 'spot',
           time: formatTime(cursor),

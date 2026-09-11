@@ -32,7 +32,7 @@ export default function HomeScreen() {
         <View style={styles.bottom}>
           <TouchableOpacity
             style={styles.primaryButton}
-            onPress={() => navigation.navigate('TravelStyle', { mode: 'manual' })}
+            onPress={() => navigation.navigate('TravelStyle')}
             activeOpacity={0.85}
           >
             <Text style={styles.primaryButtonText}>직접 설정 — 명소 먼저 담기</Text>
@@ -40,10 +40,10 @@ export default function HomeScreen() {
           <Text style={styles.orText}>또는</Text>
           <TouchableOpacity
             style={styles.outlineButton}
-            onPress={() => navigation.navigate('TravelStyle', { mode: 'auto' })}
+            onPress={() => navigation.navigate('AutoSetup')}
             activeOpacity={0.85}
           >
-            <Text style={styles.outlineButtonText}>자동 설정 — 취향대로 추천받기</Text>
+            <Text style={styles.outlineButtonText}>자동 설정 — 원하는 여행을 말로 설명하기</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('SavedList')} style={styles.linkWrapper}>
             <Text style={styles.linkText}>저장된 일정 보기</Text>

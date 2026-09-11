@@ -123,13 +123,14 @@ export default function DetailConditionScreen() {
   const route = useRoute<Route>();
   const prevSettings = route.params?.settings ?? {};
 
-  const [startTime, setStartTime] = useState(9);
-  const [endTime, setEndTime]     = useState(19);
-  const [arrival, setArrival]     = useState<number | undefined>(undefined);
-  const [departure, setDeparture] = useState<number | undefined>(undefined);
-  const [people, setPeople]       = useState(2);
-  const [budget, setBudget]       = useState(1);
-  const [luggage, setLuggage]     = useState<TripSettings['luggage']>('light');
+  // 자동 설정(AI)에서 "조건 직접 수정"으로 넘어오면 채워진 값으로 시작하고, 직접 설정이면 기본값으로 시작
+  const [startTime, setStartTime] = useState(prevSettings.startTime ?? 9);
+  const [endTime, setEndTime]     = useState(prevSettings.endTime ?? 19);
+  const [arrival, setArrival]     = useState<number | undefined>(prevSettings.firstDayArrival);
+  const [departure, setDeparture] = useState<number | undefined>(prevSettings.lastDayDeparture);
+  const [people, setPeople]       = useState(prevSettings.people ?? 2);
+  const [budget, setBudget]       = useState(prevSettings.budget ?? 1);
+  const [luggage, setLuggage]     = useState<TripSettings['luggage']>(prevSettings.luggage ?? 'light');
   const [arrivalModal, setArrivalModal]   = useState(false);
   const [departureModal, setDepartureModal] = useState(false);
 

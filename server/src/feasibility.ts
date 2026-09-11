@@ -110,7 +110,14 @@ export function simulateDayEnd(
         mealDone[due] = true;
         continue;
       }
-      cursor = arrival + spot.durationMinutes;
+      // 이동 중에 식사 시간이 되면 도착해서 먼저 먹는다 (앱 generateTimeline과 같은 규칙)
+      const onArrival = openMeals.find(m => arrival >= MEAL_WINDOWS[m].earliest && arrival <= MEAL_WINDOWS[m].latest);
+      if (onArrival !== undefined) {
+        cursor = arrival + MEAL_MINUTES + spot.durationMinutes;
+        mealDone[onArrival] = true;
+      } else {
+        cursor = arrival + spot.durationMinutes;
+      }
     }
     prev = idx + 1;
     i++;
@@ -129,6 +136,11 @@ export function validatePlan(req: RoutePlanRequest, plan: ClaudeRoutePlan): stri
   const errors: string[] = [];
   const seen = new Set<number>();
   const windows = dayWindows(req.settings, totalDays);
+
+  // 추론 없이 짜면 하루에 한두 곳만 넣어 기간이 부풀려지는 경우가 있었다 — 한도를 지키는 단순 알고리즘보다 하루 넘게 길면 다시 짜게 한다
+  if (totalDays > req.baseline.days + 1) {
+    errors.push(`기간 ${totalDays}일은 너무 깁니다. 기준안 ${req.baseline.days}일보다 하루 넘게 길지 않도록 한도 안에서 하루에 명소를 더 넣으세요.`);
+  }
 
   plan.days.forEach((day, d) => {
     const idxs: number[] = [];

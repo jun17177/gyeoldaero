@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import Anthropic from '@anthropic-ai/sdk';
 import { routePlanRequestSchema } from './schema.js';
 import { planRoute } from './planRoute.js';
+import { extractTripSettings, tripSettingsRequestSchema } from './tripSettings.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 
@@ -21,6 +22,20 @@ function rateLimit(req: Request, res: Response, next: NextFunction) {
   recent.push(now);
   recentRequests.set(key, recent);
   next();
+}
+
+// Claude API 오류를 응답으로 바꾼다. 처리했으면 true — 앱은 어떤 실패든 알고리즘 일정·직접 설정으로 넘어간다
+function sendClaudeError(res: Response, err: unknown, tag: string): boolean {
+  if (err instanceof Anthropic.RateLimitError) {
+    res.status(503).json({ error: 'upstream_busy' });
+    return true;
+  }
+  if (err instanceof Anthropic.APIError) {
+    console.error(`[${tag}] Claude API 오류:`, err.status, err.message);
+    res.status(502).json({ error: 'upstream_error' });
+    return true;
+  }
+  return false;
 }
 
 const app = express();
@@ -48,16 +63,26 @@ app.post('/api/route-plan', rateLimit, async (req, res) => {
     }
     res.json(plan);
   } catch (err) {
-    if (err instanceof Anthropic.RateLimitError) {
-      res.status(503).json({ error: 'upstream_busy' });
+    if (!sendClaudeError(res, err, 'route-plan')) throw err;
+  }
+});
+
+app.post('/api/trip-settings', rateLimit, async (req, res) => {
+  const parsed = tripSettingsRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'invalid_request' });
+    return;
+  }
+
+  try {
+    const result = await extractTripSettings(parsed.data.text);
+    if (!result) {
+      res.status(422).json({ error: 'settings_unavailable' });
       return;
     }
-    if (err instanceof Anthropic.APIError) {
-      console.error('[route-plan] Claude API 오류:', err.status, err.message);
-      res.status(502).json({ error: 'upstream_error' });
-      return;
-    }
-    throw err;
+    res.json(result);
+  } catch (err) {
+    if (!sendClaudeError(res, err, 'trip-settings')) throw err;
   }
 });
 

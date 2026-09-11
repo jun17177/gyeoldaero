@@ -42,8 +42,10 @@
 
 ### AI 동선 서버 (server/)
 - Node + Express + `@anthropic-ai/sdk`. Claude API 키는 `server/.env`에만 둔다 — 앱 번들에 넣으면 누구나 추출 가능
-- 기본 모델 `claude-sonnet-5`, effort `low` (응답 속도 우선). `server/.env`의 `PLANNER_MODEL`·`PLANNER_EFFORT`로 변경
+- 기본 모델 `claude-sonnet-5`, effort `low`, 추론 끔 + 계산 메모 (응답 속도 우선 — 명소 9곳 기준 8~14초). `server/.env`의 `PLANNER_MODEL`·`PLANNER_EFFORT`·`PLANNER_THINKING`으로 변경
 - `POST /api/route-plan`: 명소·설정·이동시간 행렬을 받아 Claude(Structured Outputs)로 날짜별 배정·순서·기간을 받고, `feasibility.ts`로 가용시간·누락을 검증
+- `POST /api/trip-settings`: 자유 문장을 받아 Claude가 TripSettings(테마·계절·활동시간·인원·짐 등)를 채워 반환 — 자동 설정 화면에서 사용
+- 조직 단위 키(워크스페이스에 묶이지 않은 키)를 쓰면 `server/.env`에 `ANTHROPIC_WORKSPACE_ID`도 넣어야 함
 - 앱은 `.env.local`의 `EXPO_PUBLIC_PLANNER_API_URL`로 서버 주소를 받는다. 비어 있으면 AI 없이 동작
 - 요청 형태를 바꾸면 `server/src/schema.ts`와 `src/types/index.ts`의 `RoutePlanRequest`를 함께 수정
 
@@ -64,6 +66,7 @@ gyeoldaero/
 │   │   ├── SplashScreen.tsx       # S1  스플래시 (2.2초 후 자동 이동)
 │   │   ├── SavedListScreen.tsx    # S0  저장된 일정 목록
 │   │   ├── HomeScreen.tsx         # S2  홈 (직접/자동 설정 선택)
+│   │   ├── AutoSetupScreen.tsx    # S2-1 자동 설정 (자유 문장 → AI가 여행 조건 채움)
 │   │   ├── TravelStyleScreen.tsx  # S3a 테마·계절 선택 (날씨는 WeatherScreen에서 예보로)
 │   │   ├── DetailConditionScreen.tsx # S3b 시간대·인원·예산·짐 선택
 │   │   ├── SpotSelectScreen.tsx   # S4  명소 선택 + 기간 자동 산출
@@ -82,7 +85,8 @@ gyeoldaero/
 │   │   ├── tourApi.ts
 │   │   ├── kakaoApi.ts
 │   │   ├── weatherApi.ts
-│   │   └── routePlanApi.ts        # AI 동선 서버 호출
+│   │   ├── routePlanApi.ts        # AI 동선 서버 호출
+│   │   └── tripSettingsApi.ts     # AI 자동 설정 서버 호출
 │   ├── storage/
 │   │   └── scheduleStorage.ts     # AsyncStorage CRUD
 │   ├── types/
@@ -94,7 +98,7 @@ gyeoldaero/
 │   └── data/
 │       └── jejuSpots.ts           # 제주 명소 시드 데이터 28개
 ├── server/                        # AI 동선 서버 (Claude API 키 보관)
-│   └── src/                       # index · planRoute · prompt · schema · feasibility
+│   └── src/                       # index · claude · planRoute · prompt · schema · feasibility · tripSettings
 └── app_des/                       # 디자인 시안 PNG
 ```
 
@@ -109,7 +113,8 @@ RootStackParamList:
 흐름:
 Splash (2.2초) → SavedList
 SavedList → Home (새로운 여행 시작하기)
-Home → TravelStyle (직접/자동 설정)
+Home → TravelStyle (직접 설정) / AutoSetup (자동 설정)
+AutoSetup → SpotSelect (또는 DetailCondition에서 AI가 채운 조건 수정)
 TravelStyle → DetailCondition
 DetailCondition → SpotSelect
 SpotSelect → Timeline

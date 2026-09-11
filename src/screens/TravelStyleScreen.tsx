@@ -8,14 +8,13 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, TripSettings } from '../types';
 import { colors, spacing, radius } from '../constants/theme';
 
 type Nav = StackNavigationProp<RootStackParamList, 'TravelStyle'>;
-type Route = RouteProp<RootStackParamList, 'TravelStyle'>;
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -51,7 +50,6 @@ function StepDots({ active }: { active: 1 | 2 }) {
 
 export default function TravelStyleScreen() {
   const navigation = useNavigation<Nav>();
-  useRoute<Route>();
 
   const [themes, setThemes] = useState<TripSettings['themes']>([]);
   const [season, setSeason]   = useState<TripSettings['season']>('spring');

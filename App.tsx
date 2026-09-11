@@ -8,6 +8,7 @@ import { RootStackParamList } from './src/types';
 import SplashScreen from './src/screens/SplashScreen';
 import SavedListScreen from './src/screens/SavedListScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import AutoSetupScreen from './src/screens/AutoSetupScreen';
 import TravelStyleScreen from './src/screens/TravelStyleScreen';
 import DetailConditionScreen from './src/screens/DetailConditionScreen';
 import SpotSelectScreen from './src/screens/SpotSelectScreen';
@@ -33,6 +34,8 @@ export default function App() {
           <Stack.Screen name="SavedList"        component={SavedListScreen} />
           {/* S2 */}
           <Stack.Screen name="Home"             component={HomeScreen} />
+          {/* S2_1 자동 설정 */}
+          <Stack.Screen name="AutoSetup"        component={AutoSetupScreen} />
           {/* S3a */}
           <Stack.Screen name="TravelStyle"      component={TravelStyleScreen} />
           {/* S3b */}

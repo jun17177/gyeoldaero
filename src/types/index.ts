@@ -79,11 +79,18 @@ export interface AiRoutePlan {
   daysReason: string;
 }
 
+// 자동 설정: 자유 문장을 Claude가 해석한 결과 (server/src/tripSettings.ts의 TripSettingsResult와 맞춰야 함)
+export interface AiTripSettings {
+  settings: TripSettings;
+  summary: string; // AI가 이해한 내용 — 화면에 그대로 보여줌
+}
+
 export type RootStackParamList = {
   Splash: undefined;
   SavedList: undefined;
   Home: undefined;
-  TravelStyle: { mode: 'manual' | 'auto' };
+  TravelStyle: undefined;
+  AutoSetup: undefined;
   DetailCondition: { settings: Partial<TripSettings> };
   SpotSelect: { settings: TripSettings };
   Timeline: { schedule: TripSchedule };

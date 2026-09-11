@@ -67,6 +67,8 @@ export type RoutePlanRequest = z.infer<typeof routePlanRequestSchema>;
 export const claudeRoutePlanSchema = z.object({
   days: z.array(
     z.object({
+      // spots보다 먼저 쓰게 해서, 추론을 꺼도 모델이 그날 합계를 적어 보며 한도를 확인하도록 한다 (앱에는 보내지 않음)
+      work: z.string(),
       spots: z.array(z.number().int()),
       note: z.string(),
     }),
