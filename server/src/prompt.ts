@@ -1,5 +1,5 @@
 import { ClaudeRoutePlan, RoutePlanRequest, SkyCondition } from './schema.js';
-import { DayWindow, dayBudget, dayWindows, hhmm, mealSlots } from './feasibility.js';
+import { DayWindow, dayBudget, dayWindows, hhmm, isIndoor, mealSlots } from './feasibility.js';
 
 type Settings = RoutePlanRequest['settings'];
 
@@ -21,15 +21,6 @@ const LUGGAGE_KR: Record<Settings['luggage'], string> = {
   light: '가벼움(백팩)', medium: '보통(작은 캐리어)',
   heavy: '무거움(큰 캐리어)', very_heavy: '매우 무거움',
 };
-
-const INDOOR_TAG_HINTS = ['실내', '박물관', '미술관', '전시', '시장', '카페', '체험', '수족관', '동굴'];
-
-// 비·눈 오는 날 배치를 모델이 명소 이름만 보고 추측하지 않도록 미리 분류해 넘긴다 — 추론을 꺼도 날씨에 맞게 배치하도록
-function isIndoor(spot: RoutePlanRequest['spots'][number]): boolean {
-  return spot.category === 'culture'
-    || spot.category === 'food'
-    || spot.tags.some(tag => INDOOR_TAG_HINTS.some(hint => tag.includes(hint)));
-}
 
 // 제주의 계절별 대략적인 일출·일몰 시각(시). 활동 시간 밖의 일출·야경을 note에 약속하지 않도록 조건에 구체적으로 적는다 —
 // "활동 시간 안의 내용만"이라는 일반 규칙은 추론을 끄면 잘 지켜지지 않았다

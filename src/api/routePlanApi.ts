@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { PLANNER_API_URL } from '../constants/config';
+import { PLANNER_API_URL, plannerHeaders } from '../constants/config';
 import { AiRoutePlan, RoutePlanRequest } from '../types';
 
 // 서버가 Claude 응답을 검증하고 필요하면 한 번 재시도까지 하므로 넉넉하게 기다린다
@@ -25,6 +25,7 @@ export async function requestAiRoutePlan(req: RoutePlanRequest): Promise<AiRoute
   try {
     const res = await axios.post<unknown>(`${PLANNER_API_URL}/api/route-plan`, req, {
       timeout: TIMEOUT_MS,
+      headers: plannerHeaders(),
     });
     if (isAiRoutePlan(res.data)) return res.data;
     console.warn('[routePlan] 예상과 다른 응답 — EXPO_PUBLIC_PLANNER_API_URL이 AI 동선 서버를 가리키는지 확인하세요');

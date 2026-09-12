@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { PLANNER_API_URL } from '../constants/config';
+import { PLANNER_API_URL, plannerHeaders } from '../constants/config';
 import { AiTripSettings, TripSettings } from '../types';
 
 const TIMEOUT_MS = 60_000;
@@ -31,6 +31,7 @@ export async function requestTripSettings(text: string): Promise<AiTripSettings 
   try {
     const res = await axios.post<unknown>(`${PLANNER_API_URL}/api/trip-settings`, { text }, {
       timeout: TIMEOUT_MS,
+      headers: plannerHeaders(),
     });
     const data = res.data;
     if (isRecord(data) && typeof data.summary === 'string' && isTripSettings(data.settings)) {

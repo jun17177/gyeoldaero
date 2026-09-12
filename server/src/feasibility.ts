@@ -47,6 +47,15 @@ function isRestaurant(spot: RoutePlanRequest['spots'][number]): boolean {
   return spot.category === 'food' && spot.foodType === 'restaurant';
 }
 
+const INDOOR_TAG_HINTS = ['실내', '박물관', '미술관', '전시', '시장', '카페', '체험', '수족관', '동굴'];
+
+// 비·눈 오는 날 배치를 모델이 명소 이름만 보고 추측하지 않도록 서버가 분류한다 (프롬프트 표시와 검증에 함께 사용)
+export function isIndoor(spot: RoutePlanRequest['spots'][number]): boolean {
+  return spot.category === 'culture'
+    || spot.category === 'food'
+    || spot.tags.some(tag => INDOOR_TAG_HINTS.some(hint => tag.includes(hint)));
+}
+
 // spotIdxs: 그날 방문 순서대로의 spots 배열 인덱스
 export function usedMinutes(req: RoutePlanRequest, spotIdxs: number[], win: DayWindow): number {
   let total = 0;
@@ -136,6 +145,7 @@ export function validatePlan(req: RoutePlanRequest, plan: ClaudeRoutePlan): stri
   const errors: string[] = [];
   const seen = new Set<number>();
   const windows = dayWindows(req.settings, totalDays);
+  const dayIdxs: number[][] = [];
 
   // 추론 없이 짜면 하루에 한두 곳만 넣어 기간이 부풀려지는 경우가 있었다 — 한도를 지키는 단순 알고리즘보다 하루 넘게 길면 다시 짜게 한다
   if (totalDays > req.baseline.days + 1) {
@@ -157,6 +167,7 @@ export function validatePlan(req: RoutePlanRequest, plan: ClaudeRoutePlan): stri
       seen.add(n);
       idxs.push(n - 1);
     }
+    dayIdxs.push(idxs);
 
     // 명소가 하나뿐인 날은 더 나눌 방법이 없으므로(예: 긴 등반 코스) 초과를 허용
     if (idxs.length <= 1) return;
@@ -177,6 +188,27 @@ export function validatePlan(req: RoutePlanRequest, plan: ClaudeRoutePlan): stri
       );
     }
   });
+
+  // 비·눈 오는 날에 야외 명소가 있고 맑은 날에 실내 명소가 있으면 서로 바꿀 수 있다.
+  // 프롬프트로 부탁하는 것만으로는 잘 지켜지지 않아 검증으로 막는다 (바꿀 실내 명소가 없으면 통과)
+  const weatherByDay = req.weatherByDay ?? [];
+  if (weatherByDay.length > 0) {
+    const isBadWeather = (d: number) => weatherByDay[d] === 'rainy' || weatherByDay[d] === 'snowy';
+    const label = (i: number) => `${i + 1}번 ${req.spots[i].name}`;
+    const indoorOnGoodDays = dayIdxs.flatMap((idxs, d) =>
+      isBadWeather(d) ? [] : idxs.filter(i => isIndoor(req.spots[i])),
+    );
+
+    dayIdxs.forEach((idxs, d) => {
+      if (!isBadWeather(d) || indoorOnGoodDays.length === 0) return;
+      const outdoor = idxs.filter(i => !isIndoor(req.spots[i]));
+      if (outdoor.length === 0) return;
+      errors.push(
+        `DAY ${d + 1}(${weatherByDay[d] === 'snowy' ? '눈' : '비'}): 야외 명소 ${outdoor.map(label).join(', ')}가 있습니다. ` +
+          `맑은 날에 있는 실내 명소(${indoorOnGoodDays.map(label).join(', ')})와 자리를 바꾸세요.`,
+      );
+    });
+  }
 
   const missing = req.spots
     .map((spot, i) => ({ spot, n: i + 1 }))

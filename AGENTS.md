@@ -46,6 +46,8 @@
 - `POST /api/route-plan`: 명소·설정·이동시간 행렬을 받아 Claude(Structured Outputs)로 날짜별 배정·순서·기간을 받고, `feasibility.ts`로 가용시간·누락을 검증
 - `POST /api/trip-settings`: 자유 문장을 받아 Claude가 TripSettings(테마·계절·활동시간·인원·짐 등)를 채워 반환 — 자동 설정 화면에서 사용
 - 조직 단위 키(워크스페이스에 묶이지 않은 키)를 쓰면 `server/.env`에 `ANTHROPIC_WORKSPACE_ID`도 넣어야 함
+- 공개 주소에 올릴 때는 `server/.env`의 `PLANNER_TOKEN`을 설정하고 앱 `.env.local`에 같은 값을 `EXPO_PUBLIC_PLANNER_API_TOKEN`으로 넣는다 (헤더 `x-planner-token`, 값이 없으면 인증 없이 동작)
+- `feasibility.ts`는 한도·누락뿐 아니라 실제 시각(식사 대기 포함), 기간 과다(기준안+1일), 비·눈 오는 날의 야외 명소 배치도 검증한다
 - 앱은 `.env.local`의 `EXPO_PUBLIC_PLANNER_API_URL`로 서버 주소를 받는다. 비어 있으면 AI 없이 동작
 - 요청 형태를 바꾸면 `server/src/schema.ts`와 `src/types/index.ts`의 `RoutePlanRequest`를 함께 수정
 
@@ -97,6 +99,8 @@ gyeoldaero/
 │   │   └── config.ts              # AI 동선 서버 주소
 │   └── data/
 │       └── jejuSpots.ts           # 제주 명소 시드 데이터 28개
+├── scripts/
+│   └── check.ts                   # npm run check — 알고리즘·서버 검증 회귀 테스트 (외부 API 호출 없음)
 ├── server/                        # AI 동선 서버 (Claude API 키 보관)
 │   └── src/                       # index · claude · planRoute · prompt · schema · feasibility · tripSettings
 └── app_des/                       # 디자인 시안 PNG
@@ -233,3 +237,4 @@ interface DayPlan {
 3. 새 화면 추가 시 `RootStackParamList` + `App.tsx` 동시 업데이트
 4. 알고리즘 수정 시 `generateTimeline.ts`의 의존 관계 확인
 5. 명소 데이터 추가 시 `jejuSpots.ts`에 동일한 `Spot` 인터페이스 형식 준수
+6. 알고리즘·타임라인·서버 검증 로직을 고쳤으면 `npm run check`로 회귀 확인

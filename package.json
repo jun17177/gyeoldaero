@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
+    "check": "tsx scripts/check.ts",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.4",
+    "tsx": "^4.23.13",
     "typescript": "~6.0.3"
   },
   "private": true

@@ -6,7 +6,19 @@ import { extractTripSettings, tripSettingsRequestSchema } from './tripSettings.j
 
 const PORT = Number(process.env.PORT ?? 8787);
 
-// 아직 사용자 인증이 없어서 주소만 알면 누구나 Claude 비용을 쓸 수 있음 — 공개 배포 전까지의 최소한의 IP별 제한
+// 공개 주소에 올릴 때 최소한의 접근 제한. 앱 번들에서 토큰을 꺼낼 수 있으므로 비밀번호는 아니고,
+// 주소만 알고 호출하는 것을 막는 용도다. 제대로 된 인증은 사용자 로그인이 생긴 뒤에 붙인다
+const TOKEN = process.env.PLANNER_TOKEN ?? '';
+
+function requireToken(req: Request, res: Response, next: NextFunction) {
+  if (!TOKEN || req.get('x-planner-token') === TOKEN) {
+    next();
+    return;
+  }
+  res.status(401).json({ error: 'unauthorized' });
+}
+
+// 토큰을 쓰더라도 한 명이 계속 호출하는 것은 막아야 하므로 IP별 제한은 그대로 둔다
 const RATE_WINDOW_MS = 10 * 60_000;
 const RATE_MAX_REQUESTS = 30;
 const recentRequests = new Map<string, number[]>();
@@ -45,7 +57,7 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/route-plan', rateLimit, async (req, res) => {
+app.post('/api/route-plan', requireToken, rateLimit, async (req, res) => {
   const parsed = routePlanRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({
@@ -67,7 +79,7 @@ app.post('/api/route-plan', rateLimit, async (req, res) => {
   }
 });
 
-app.post('/api/trip-settings', rateLimit, async (req, res) => {
+app.post('/api/trip-settings', requireToken, rateLimit, async (req, res) => {
   const parsed = tripSettingsRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'invalid_request' });
@@ -94,6 +106,9 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 if (!process.env.ANTHROPIC_API_KEY) {
   console.warn('ANTHROPIC_API_KEY가 설정되지 않았어요. server/.env.example을 참고해 server/.env를 만드세요.');
+}
+if (!TOKEN) {
+  console.warn('PLANNER_TOKEN이 없어 인증 없이 동작합니다 (로컬 개발용). 공개 주소에 올릴 때는 반드시 설정하세요.');
 }
 
 // 같은 Wi-Fi의 휴대폰(Expo Go)에서도 접속할 수 있도록 모든 인터페이스에서 수신

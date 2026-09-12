@@ -96,6 +96,18 @@ cp .env.example .env.local
 > `--tunnel`로 다른 네트워크에서 접속하면 휴대폰이 PC의 서버에 직접 닿지 않습니다. 이때는 서버도 터널 도구(ngrok, cloudflared 등)로 열거나 서버를 배포해야 합니다.  
 > `.env.local`을 바꾼 뒤에는 `npx expo start -c`로 캐시를 지우고 다시 실행하세요.
 
+서버를 공개 주소(배포·터널)에 올릴 때는 인증을 켜세요. `server/.env`의 `PLANNER_TOKEN`에 아무 문자열이나 넣고, 앱 `.env.local`의 `EXPO_PUBLIC_PLANNER_API_TOKEN`에 같은 값을 넣으면 됩니다. 값이 없으면 인증 없이 동작합니다(로컬 개발용).
+
+---
+
+### 6. 검증 스크립트
+
+알고리즘·타임라인·서버 검증 로직을 고쳤다면 아래를 실행해 회귀를 확인하세요. 외부 API를 호출하지 않아서 키 없이도 돌아갑니다.
+
+```bash
+npm run check
+```
+
 ---
 
 ## 폴더 구조
