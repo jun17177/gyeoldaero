@@ -13,9 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, TripSchedule } from '../types';
 import { colors, spacing, radius, shadows } from '../constants/theme';
 import { fetchWeatherForecast, WeatherDay, SkyCondition } from '../api/weatherApi';
+import { planTrip } from '../algorithms/planTrip';
 import { saveSchedule, loadScheduleById } from '../storage/scheduleStorage';
 import StateView from '../components/StateView';
 
@@ -55,7 +56,8 @@ function isToday(dateStr: string): boolean {
 export default function WeatherScreen() {
   const navigation = useNavigation<Nav>();
   const route      = useRoute<Route>();
-  const { schedule, scheduleName } = route.params;
+  const { schedule: baseSchedule, scheduleName } = route.params;
+  const schedule = baseSchedule;
 
   const [forecast, setForecast]     = useState<WeatherDay[]>([]);
   // 예보 조회 실패 시 가짜 데이터가 실제 예보처럼 보이지 않도록 안내한다
@@ -63,6 +65,8 @@ export default function WeatherScreen() {
   const [loading, setLoading]       = useState(true);
   const [selectedStart, setSelected] = useState<number | null>(null);
   const [saving, setSaving]          = useState(false);
+  // 예보를 반영해 일정을 다시 짜는 중 — 몇 초 걸릴 수 있어 버튼에 표시한다
+  const [replanning, setReplanning]  = useState(false);
 
   const tripDays = schedule.days;
 
@@ -77,12 +81,41 @@ export default function WeatherScreen() {
   const isEnd      = (i: number) => selectedStart !== null && i === selectedStart + tripDays - 1;
   const canSelect  = (i: number) => i + tripDays <= forecast.length;
 
+  // 고른 날짜의 예보로 일정을 다시 맞춘다.
+  // 서버는 이미 "비·눈 오는 날엔 실내 명소" 규칙으로 검증하지만, 그동안 앱이 예보를
+  // 넘기지 않아 이 규칙이 동작하지 않았다. 실패하면 기존 일정을 그대로 저장한다.
+  const replanForWeather = async (start: number): Promise<TripSchedule> => {
+    const weatherByDay = forecast.slice(start, start + tripDays).map(d => d.condition);
+    if (weatherByDay.length < tripDays) return schedule;
+    // 비·눈이 하루도 없으면 다시 짤 이유가 없다 (불필요한 대기 제거)
+    if (!weatherByDay.some(c => c === 'rainy' || c === 'snowy')) return schedule;
+    setReplanning(true);
+    try {
+      const planned = await planTrip(schedule, { weatherByDay });
+      return {
+        ...schedule,
+        ...planned,
+        spots: planned.spots ?? schedule.spots,
+        // 동선이 바뀌면 식당 추천도 다시 받아야 한다
+        mealOptionsEnriched: false,
+      };
+    } catch (e) {
+      console.warn('[Weather] 날씨 반영 재설계 실패, 기존 일정 유지:', e);
+      return schedule;
+    } finally {
+      setReplanning(false);
+    }
+  };
+
   const handleSave = async (withDate: boolean) => {
     setSaving(true);
     const startDate = withDate && selectedStart !== null
       ? forecast[selectedStart]?.date
       : undefined;
     try {
+      const schedule = withDate && selectedStart !== null && !forecastIsMock
+        ? await replanForWeather(selectedStart)
+        : baseSchedule;
       // 저장된 일정을 다시 열어 "이름을 바꿔" 저장하면 원본을 덮지 않고 새 복제본으로 저장한다.
       // (같은 이름으로 저장하면 기존 일정을 제자리 업데이트, 신규 일정은 그대로 최초 저장)
       const existing = await loadScheduleById(schedule.id);
@@ -282,7 +315,10 @@ export default function WeatherScreen() {
           activeOpacity={0.85}
         >
           {saving ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <View style={styles.savingRow}>
+              <ActivityIndicator size="small" color="#fff" />
+              {replanning && <Text style={styles.saveBtnText}>날씨에 맞춰 일정 조정 중…</Text>}
+            </View>
           ) : (
             <Text style={styles.saveBtnText}>
               {selectedStart === null ? '날짜를 선택해주세요' : '이 날짜로 저장하기'}
@@ -340,6 +376,7 @@ const styles = StyleSheet.create({
   guideText: { fontSize: 12, color: colors.primary, flex: 1 },
 
   // 예보 범위 초과 경고 배너
+  savingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   warnBanner: {
     flexDirection: 'row',
     alignItems: 'center',
