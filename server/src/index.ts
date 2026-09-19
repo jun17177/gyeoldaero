@@ -10,8 +10,17 @@ import { requirePlannerToken } from './routes/requireToken';
 const app = express();
 // 명소 목록이 1MB가 넘어 압축 여부가 앱 첫 로딩 체감을 좌우한다 (1.26MB → 약 250KB)
 app.use(compression());
-// TODO(배포 전): origin을 앱 도메인으로 제한할 것
-app.use(cors());
+// 허용할 출처를 ALLOWED_ORIGINS(쉼표 구분)로 제한한다.
+// 비워두면 모두 허용 — 로컬 개발 편의를 위한 기본값이므로 배포 시에는 반드시 설정할 것.
+// (Expo 네이티브 앱 요청에는 Origin 헤더가 없어 항상 통과한다)
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? '')
+  .split(',').map(o => o.trim()).filter(Boolean);
+app.use(cors(allowedOrigins.length === 0 ? undefined : {
+  origin: (origin, cb) =>
+    !origin || allowedOrigins.includes(origin)
+      ? cb(null, true)
+      : cb(new Error('origin_not_allowed')),
+}));
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/health', (_req, res) => {
@@ -33,6 +42,10 @@ app.use('/api', requirePlannerToken, plannerRouter);
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof SyntaxError) {
     return res.status(400).json({ error: '잘못된 JSON 형식입니다' });
+  }
+  // 허용 목록에 없는 출처 — 서버 오류가 아니므로 403으로 돌려준다
+  if (err.message === 'origin_not_allowed') {
+    return res.status(403).json({ error: 'origin_not_allowed' });
   }
   console.error('[server]', err);
   res.status(500).json({ error: '서버 오류가 발생했습니다' });

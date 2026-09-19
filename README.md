@@ -260,8 +260,9 @@ LAN IP 의존을 없애려면 Render·Railway 같은 곳에 `server/`를 올리�
 - `PLANNER_TOKEN` — 설정하면 앱과 서버가 같은 값을 써야 하며, 주소만 아는
   외부인이 Anthropic 크레딧을 쓰는 것을 막습니다. 앱 `.env`에도
   `EXPO_PUBLIC_PLANNER_API_TOKEN`으로 같은 값을 넣습니다.
-- CORS — `server/src/index.ts`의 `cors()`가 모든 출처를 허용합니다.
-  배포 시 앱 도메인으로 제한하세요.
+- `ALLOWED_ORIGINS` — 브라우저에서 호출할 출처를 쉼표로 나열합니다.
+  비워두면 모두 허용합니다(로컬 개발 기본값). Expo 네이티브 앱 요청에는
+  Origin 헤더가 없어 이 설정과 무관하게 동작합니다.
 
 ---
 
