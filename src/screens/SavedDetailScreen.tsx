@@ -15,6 +15,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, DayPlan, TimelineItem } from '../types';
+import { findSpotOf } from '../utils/findSpot';
 import { colors, spacing, radius, shadows, fonts } from '../constants/theme';
 import { generateTimeline } from '../algorithms/generateTimeline';
 import { deleteSchedule } from '../storage/scheduleStorage';
@@ -98,7 +99,7 @@ export default function SavedDetailScreen() {
   };
 
   const renderRow = (item: TimelineItem, idx: number, isLast: boolean) => {
-    const spot = schedule.spots.find(s => s.name === item.name);
+    const spot = findSpotOf(schedule.spots, item);
     const displayName =
       item.type === 'meal' && item.selectedOption ? item.selectedOption : item.name;
     return (

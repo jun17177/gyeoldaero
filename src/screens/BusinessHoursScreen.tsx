@@ -42,8 +42,17 @@ export default function BusinessHoursScreen() {
   const dayPlans: DayPlan[] =
     schedule.dayPlans?.length ? schedule.dayPlans : generateTimeline(schedule);
 
+  // '이동'·'점심 식사'·'숙소 복귀'처럼 검색할 장소가 없는 항목은 링크를 달지 않는다.
+  // (달아두면 지도에서 "이동 제주"를 검색하게 된다)
+  const linkFor = (item: TimelineItem): string | undefined => {
+    if (item.type === 'spot') return item.linkUrl ?? SEARCH_URL(item.name);
+    // 식사는 사용자가 식당을 골랐을 때만 그 식당을 검색한다
+    if (item.type === 'meal' && item.selectedOption) return SEARCH_URL(item.selectedOption);
+    return undefined;
+  };
+
   const renderItem = (item: TimelineItem, idx: number, isLast: boolean) => {
-    const url = item.linkUrl ?? SEARCH_URL(item.name);
+    const url = linkFor(item);
     return (
       <View key={`${item.time}_${idx}`} style={styles.timelineRow}>
         <View style={styles.dotCol}>
@@ -53,13 +62,15 @@ export default function BusinessHoursScreen() {
         <View style={styles.itemContent}>
           <View style={styles.itemMain}>
             <View style={styles.itemText}>
-              <Text style={styles.itemName}>{item.name}</Text>
+              <Text style={styles.itemName}>
+                {item.type === 'meal' && item.selectedOption ? item.selectedOption : item.name}
+              </Text>
               <Text style={styles.itemMeta}>
                 {item.time}{item.duration > 0 ? ` · ${item.duration}분` : ''}
               </Text>
             </View>
           </View>
-          <LinkButton url={url} />
+          {url && <LinkButton url={url} />}
         </View>
       </View>
     );

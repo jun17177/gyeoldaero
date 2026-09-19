@@ -16,6 +16,21 @@ const makeSchedule = (spots: Spot[]): TripSchedule => ({
 });
 
 describe('generateTimeline', () => {
+  it('긴 명소 뒤에도 복귀 시간이 이전 일정보다 앞서지 않는다', () => {
+    const plans = generateTimeline(makeSchedule([{ ...spot('long', 33.5, 126.5), durationMinutes: 800 }]));
+    for (const plan of plans) {
+      // '다음날 08:40'은 자정을 넘긴 시각 — 비교를 위해 24시간을 더해 분으로 환산한다
+      const minutes = (time: string) => {
+        const nextDay = time.startsWith('다음날');
+        const [h, m] = time.replace('다음날', '').trim().split(':').map(Number);
+        return h * 60 + m + (nextDay ? 24 * 60 : 0);
+      };
+      for (let i = 1; i < plan.items.length; i++) {
+        const prev = plan.items[i - 1];
+        expect(minutes(plan.items[i].time)).toBeGreaterThanOrEqual(minutes(prev.time) + prev.duration);
+      }
+    }
+  });
   const spots = [
     spot('1', 33.45, 126.30),
     spot('2', 33.50, 126.53),
@@ -78,5 +93,42 @@ describe('generateTimeline', () => {
       .flatMap(x => x.items.filter(i => i.type === 'spot').map(i => i.name))
       .sort();
     expect(names).toEqual(many.map(s => s.name).sort());
+  });
+});
+
+describe('시각 표기·마지막 날 기준', () => {
+  const longSpots = Array.from({ length: 12 }, (_, i) => ({
+    ...spot(`long${i}`, 33.4, 126.5), durationMinutes: 300,
+  }));
+
+  it('24시를 넘는 시각을 그대로 내보내지 않는다 (24:20 → 다음날 00:20)', () => {
+    const plans = generateTimeline(makeSchedule(longSpots));
+    const times = plans.flatMap(p => p.items.map(i => i.time));
+    for (const t of times) {
+      const hour = Number(t.replace('다음날', '').trim().split(':')[0]);
+      expect(hour).toBeLessThan(24);
+      expect(t).toMatch(/^(다음날 )?\d{2}:\d{2}$/);
+    }
+  });
+
+  it('일정이 늘어나도 마지막 날 출발 시각이 실제 마지막 날에 적용된다', () => {
+    const base = makeSchedule(longSpots);
+    const plans = generateTimeline({
+      ...base,
+      settings: { ...base.settings, lastDayDeparture: 11 },
+    });
+    const last = plans[plans.length - 1];
+    const minutes = (t: string) => {
+      const [h, m] = t.replace('다음날', '').trim().split(':').map(Number);
+      return h * 60 + m + (t.startsWith('다음날') ? 24 * 60 : 0);
+    };
+    // 마지막 날 마지막 일정은 출발 시각(11시)을 넘지 않아야 한다
+    expect(minutes(last.items[last.items.length - 1].time)).toBeLessThanOrEqual(11 * 60);
+  });
+
+  it('명소는 여전히 하나도 누락되지 않는다', () => {
+    const plans = generateTimeline(makeSchedule(longSpots));
+    const names = plans.flatMap(p => p.items.filter(i => i.type === 'spot').map(i => i.name)).sort();
+    expect(names).toEqual(longSpots.map(s => s.name).sort());
   });
 });

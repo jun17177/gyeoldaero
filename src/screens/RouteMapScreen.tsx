@@ -12,6 +12,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, DayPlan } from '../types';
+import { findSpotOf } from '../utils/findSpot';
 import { colors, spacing, radius } from '../constants/theme';
 import { generateTimeline, ACCOMMODATION_COORDS } from '../algorithms/generateTimeline';
 import RouteMapWebView, { RoutePoint } from '../components/RouteMapWebView';
@@ -59,7 +60,7 @@ export default function RouteMapScreen() {
     let n = 1;
     for (const item of plan.items) {
       if (item.type !== 'spot') continue;
-      const spot = schedule.spots.find(s => s.name === item.name);
+      const spot = findSpotOf(schedule.spots, item);
       if (!spot || typeof spot.lat !== 'number' || typeof spot.lon !== 'number') continue;
       pts.push({ label: String(n), name: spot.name, lat: spot.lat, lon: spot.lon, kind: 'spot' });
       n += 1;
