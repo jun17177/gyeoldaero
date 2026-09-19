@@ -10,6 +10,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5292,
     durationMinutes: 360,
     emoji: '⛰️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201804/30/e9cb50d3-bb50-4f68-b6ae-05887ec8715d.webp',
     tags: ['트레킹', '자연', '등산'],
   },
   {
@@ -20,6 +21,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.9425,
     durationMinutes: 90,
     emoji: '🌋',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202409/20/464d6099-295a-4e60-bd93-9e65388f4d0d.webp',
     tags: ['일출', '세계유산', '자연'],
   },
   {
@@ -30,6 +32,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.2393,
     durationMinutes: 120,
     emoji: '🏖️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202408/27/6b6dc9c4-5466-493e-98e5-580dbf18eefc.webp',
     tags: ['해변', '수영', '에메랄드'],
   },
   {
@@ -40,6 +43,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.8095,
     durationMinutes: 90,
     emoji: '🌲',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202410/16/eda139ae-6a88-486f-b2df-f23ecca6326e.webp',
     tags: ['산림욕', '피톤치드', '숲'],
   },
   {
@@ -50,6 +54,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5618,
     durationMinutes: 60,
     emoji: '💦',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201804/30/c87fb80d-98e3-4911-ae75-787fee3f0f35.webp',
     tags: ['폭포', '야간개장', '서귀포'],
   },
   {
@@ -60,6 +65,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5698,
     durationMinutes: 60,
     emoji: '🌊',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202409/25/1607868f-80ba-4f86-94cd-77a8c7d52cd6.webp',
     tags: ['폭포', '바다', '서귀포'],
   },
   {
@@ -70,6 +76,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.7717,
     durationMinutes: 90,
     emoji: '🕳️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202608/12/373fe5f6-6add-410a-8b28-b0855b7da087.jpg',
     tags: ['용암동굴', '세계유산', '탐험'],
   },
   {
@@ -80,6 +87,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.3139,
     durationMinutes: 90,
     emoji: '🗻',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202410/16/5eedc065-a33e-4729-89c9-776c52af62c0.webp',
     tags: ['기암절벽', '해안', '남서부'],
   },
   {
@@ -90,6 +98,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.3075,
     durationMinutes: 60,
     emoji: '🐉',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202409/25/e7b66d4c-0ec8-48aa-b700-51d923282b9c.webp',
     tags: ['해안절벽', '지질', '산책'],
   },
   {
@@ -100,6 +109,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.9302,
     durationMinutes: 90,
     emoji: '📸',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202408/16/f18ca648-b42f-4209-b87a-2410b8da656d.webp',
     tags: ['감성', '절경', '드라마촬영지'],
   },
   // 문화
@@ -111,6 +121,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5490,
     durationMinutes: 90,
     emoji: '🏛️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201806/28/e8cf4ca1-7983-437c-a820-b95d00ea03b6.webp',
     tags: ['역사', '문화재', '전시'],
   },
   {
@@ -121,6 +132,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.8418,
     durationMinutes: 120,
     emoji: '🏘️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202111/25/15d6a308-a457-4435-8a31-2b4f1d8ad9c6.webp',
     tags: ['전통', '민속', '체험'],
   },
   {
@@ -131,6 +143,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.4118,
     durationMinutes: 60,
     emoji: '🧸',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202409/09/dc8af425-5689-4d63-a9ce-e2c79905a42c.webp',
     tags: ['실내', '가족', '전시'],
   },
   {
@@ -142,6 +155,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.4988,
     durationMinutes: 90,
     emoji: '🕹️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202205/30/c4e6ff0b-3fa0-4763-b544-c91a0b90858c.webp',
     tags: ['IT', '게임', '실내'],
   },
   // 미식
@@ -153,6 +167,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5285,
     durationMinutes: 90,
     emoji: '🐷',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201807/26/0a2427d1-232d-4431-8e9d-22751f694527.webp',
     tags: ['흑돼지', '구이', '제주맛집'],
   },
   {
@@ -163,6 +178,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5270,
     durationMinutes: 90,
     emoji: '🛒',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202203/07/9ffbda53-cff4-467a-b84f-7523dae158e8.webp',
     tags: ['재래시장', '간식', '야시장'],
   },
   // 사진·감성
@@ -174,6 +190,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.3783,
     durationMinutes: 90,
     emoji: '🌸',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202410/15/ec11cb19-cd96-4036-b302-9730035bf052.webp',
     tags: ['동백꽃', '정원', '감성'],
   },
   {
@@ -184,6 +201,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.2887,
     durationMinutes: 90,
     emoji: '🍵',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202408/21/256f72ce-2f8d-4e8b-a6bb-54d4bb6bd329.webp',
     tags: ['녹차밭', '감성카페', '사진'],
   },
   {
@@ -194,6 +212,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.7416,
     durationMinutes: 120,
     emoji: '🚂',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202506/10/63d9b724-19f9-4f7c-a3f6-0f9510ed692e.webp',
     tags: ['기차', '자연', '가족'],
   },
   {
@@ -204,6 +223,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.6230,
     durationMinutes: 120,
     emoji: '🌿',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201908/19/c611b079-dade-41d1-bb69-486fc6986e65.webp',
     tags: ['산림욕', '힐링', '숲길'],
   },
   // 야경·야간
@@ -215,6 +235,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.9516,
     durationMinutes: 180,
     emoji: '🌙',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202408/21/92bf5bba-77fc-4829-8555-5076b2e7bb52.webp',
     tags: ['섬', '야경', '자전거'],
   },
   {
@@ -225,6 +246,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5425,
     durationMinutes: 60,
     emoji: '✨',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202111/24/6fc1a542-4741-4972-81c2-c94b7585e1cd.webp',
     tags: ['야경', '전망대', '야간'],
   },
   {
@@ -235,6 +257,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5639,
     durationMinutes: 60,
     emoji: '🌉',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201804/30/5a0e11cb-20ab-43b5-8cba-8fe0bd3e530a.webp',
     tags: ['야경', '다리', '야간산책'],
   },
   // 액티비티
@@ -246,6 +269,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.9272,
     durationMinutes: 120,
     emoji: '🐠',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202408/21/99c15344-0de8-435b-ae3c-e578926aa8f8.webp',
     tags: ['수족관', '실내', '가족'],
   },
   {
@@ -256,6 +280,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.6290,
     durationMinutes: 90,
     emoji: '🐎',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201804/30/6772b54b-d077-4285-8d38-00107f56479f.webp',
     tags: ['승마', '체험', '한라산'],
   },
   {
@@ -267,6 +292,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.4126,
     durationMinutes: 120,
     emoji: '🏄',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201807/04/78e3185e-02e5-4766-b3aa-8e3d26bb66c5.webp',
     tags: ['서핑', '해변', '레포츠'],
   },
   {
@@ -277,6 +303,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.9350,
     durationMinutes: 180,
     emoji: '🤿',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202306/19/efff925c-4aa0-4a44-afc6-4cb863897119.webp',
     tags: ['스쿠버', '해양', '레포츠'],
   },
   {
@@ -288,6 +315,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5143,
     durationMinutes: 60,
     emoji: '🪂',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202109/24/232f27f1-2647-470c-843a-bb4c119c8bbd.webp',
     tags: ['집라인', '스릴', '레포츠'],
   },
   {
@@ -298,6 +326,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.9332,
     durationMinutes: 90,
     emoji: '🐬',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201804/30/1068e7da-0b15-46ed-94bb-aeed023d73f9.webp',
     tags: ['돌고래', '수상쇼', '가족'],
   },
 
@@ -310,6 +339,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.7677,
     durationMinutes: 60,
     emoji: '🌀',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202409/09/a56a5a58-59e0-4da0-8d4a-6f18d0043d93.webp',
     tags: ['미로', '체험', '가족'],
   },
   {
@@ -320,6 +350,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.6697,
     durationMinutes: 90,
     emoji: '🏄',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202408/20/3d61ccf2-3fa8-422a-bc40-8cbafe20c52d.webp',
     tags: ['해변', '에메랄드', '스노클링'],
   },
   {
@@ -330,6 +361,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.4898,
     durationMinutes: 90,
     emoji: '🌳',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202111/10/537d83c9-45a6-4baf-9689-e7a6e307f905.webp',
     tags: ['수목원', '산책', '자연'],
   },
 
@@ -342,6 +374,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.3060,
     durationMinutes: 90,
     emoji: '🌄',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201804/30/d9887b4a-dedb-41db-a78b-762a6a5e2421.webp',
     tags: ['오름', '분화구', '일몰'],
   },
   {
@@ -352,6 +385,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.6157,
     durationMinutes: 90,
     emoji: '🛶',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202410/16/54503744-a4b3-4e68-b819-47e67df59100.webp',
     tags: ['계곡', '기암', '자연'],
   },
   {
@@ -362,6 +396,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.2396,
     durationMinutes: 120,
     emoji: '🌴',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201804/30/59ac4b28-c79f-4d37-9bff-9149d56d0f5d.webp',
     tags: ['정원', '동굴', '산책'],
   },
 
@@ -374,6 +409,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.6181,
     durationMinutes: 90,
     emoji: '🕊️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202108/10/4e944e27-520c-42e6-bfa0-005337c08f92.webp',
     tags: ['역사', '추모', '평화'],
   },
   {
@@ -384,6 +420,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.7936,
     durationMinutes: 90,
     emoji: '🏘️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202409/06/c21dcb87-742f-443b-a0a6-08bf488eab6d.webp',
     tags: ['민속', '전통', '초가'],
   },
   {
@@ -394,6 +431,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.8542,
     durationMinutes: 90,
     emoji: '🖼️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202110/29/06012df5-fdfc-40fc-b27c-3f9ad5daec0c.webp',
     tags: ['사진', '갤러리', '감성'],
   },
   {
@@ -404,6 +442,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.3667,
     durationMinutes: 90,
     emoji: '🏛️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202111/04/0bbf3619-d244-443c-b314-6c5e8ccfb8ed.webp',
     tags: ['건축', '미술', '안도타다오'],
   },
   {
@@ -414,6 +453,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.7773,
     durationMinutes: 120,
     emoji: '🐶',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202012/16/5975e5f4-541b-4549-9048-d25f017d8caa.webp',
     tags: ['테마', '정원', '감성'],
   },
 
@@ -426,6 +466,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5220,
     durationMinutes: 60,
     emoji: '🍲',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202110/22/a2f878cb-65ac-4ed8-ae18-c8850c45471a.webp',
     tags: ['해장국', '고사리', '현지맛집'],
   },
   {
@@ -436,6 +477,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5289,
     durationMinutes: 60,
     emoji: '🍜',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202112/30/29ac3dea-ad90-430b-8862-4b69e03b7861.webp',
     tags: ['고기국수', '현지맛집', '제주시'],
   },
   {
@@ -446,6 +488,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.8499,
     durationMinutes: 70,
     emoji: '🐚',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201804/30/58008d96-a5b2-4bd0-a392-0e753b33267b.webp',
     tags: ['전복돌솥밥', '구좌', '별미'],
   },
   {
@@ -456,6 +499,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5296,
     durationMinutes: 60,
     emoji: '🍥',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202111/23/8f913564-f2e6-4eef-8b9b-808d30a087eb.webp',
     tags: ['고기국수', '야식', '제주시'],
   },
   {
@@ -466,6 +510,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.4790,
     durationMinutes: 80,
     emoji: '🥩',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202409/25/67fc6e54-1862-426c-9db7-f61720f29a5c.webp',
     tags: ['흑돼지', '근고기', '노형'],
   },
   {
@@ -476,6 +521,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5636,
     durationMinutes: 60,
     emoji: '🐟',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201811/01/a361a387-cccf-40fa-9914-56840aa85fd7.webp',
     tags: ['갈치국', '서귀포', '현지맛집'],
   },
 
@@ -488,6 +534,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.3568,
     durationMinutes: 90,
     emoji: '🌾',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202410/21/2a2a3ba3-e7c4-49f5-9409-da274ca547cb.webp',
     tags: ['오름', '억새', '일몰'],
   },
   {
@@ -498,6 +545,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.7250,
     durationMinutes: 60,
     emoji: '⭕',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/201908/16/46a61de4-e102-4ea3-ba81-b4ca60f0bef7.webp',
     tags: ['오름', '분화구', '포토'],
   },
   {
@@ -508,6 +556,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.7535,
     durationMinutes: 90,
     emoji: '🌸',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202110/29/f3b7c9d2-6a3b-407b-9025-18ef2fed1fee.webp',
     tags: ['꽃밭', '감성', '포토'],
   },
   {
@@ -518,6 +567,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.7956,
     durationMinutes: 90,
     emoji: '🏝️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202407/10/6136a994-a08d-495a-a912-0a1e7b1171e8.webp',
     tags: ['해변', '카페', '감성'],
   },
   {
@@ -528,6 +578,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.1997,
     durationMinutes: 60,
     emoji: '📷',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202407/23/ef05e315-1c5a-4622-9f51-c968e7e055fc.webp',
     tags: ['포구', '인생샷', '에메랄드'],
   },
   {
@@ -538,6 +589,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.7038,
     durationMinutes: 60,
     emoji: '🌊',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202212/14/a4e5df55-9b58-41d0-bda6-2053b2e586de.webp',
     tags: ['해안절벽', '한반도숲', '포토'],
   },
 
@@ -551,6 +603,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5210,
     durationMinutes: 60,
     emoji: '🌃',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202112/09/a8ef3f12-e02b-4421-98cf-f7fbc9ac0e1c.webp',
     tags: ['야경', '바다', '산책'],
   },
   {
@@ -562,6 +615,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.4526,
     durationMinutes: 60,
     emoji: '🐴',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202110/27/90be9bec-a700-4fb1-b27f-8ff59a62d4df.webp',
     tags: ['일몰', '등대', '노을'],
   },
   {
@@ -572,6 +626,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.4686,
     durationMinutes: 60,
     emoji: '🌇',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202410/16/63992138-b676-48cb-bde4-60c7279af0a0.webp',
     tags: ['일몰', '전망', '오름'],
   },
   {
@@ -582,6 +637,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.5139,
     durationMinutes: 60,
     emoji: '🌉',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202311/28/94a989b1-03ca-463c-8fe0-567ca21341d2.webp',
     tags: ['야경', '구름다리', '계곡'],
   },
 
@@ -594,6 +650,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.3595,
     durationMinutes: 120,
     emoji: '🏎️',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202310/17/aad50d81-9cce-4c12-a3c3-67f9826b9a73.webp',
     tags: ['레이싱카트', '무동력', '체험'],
   },
   {
@@ -604,6 +661,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.8343,
     durationMinutes: 90,
     emoji: '🚲',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202607/16/f467a75b-b924-4677-95eb-20c9a5500e6d.webp',
     tags: ['레일바이크', '가족', '체험'],
   },
   {
@@ -614,6 +672,7 @@ export const jejuSpots: Spot[] = [
     lon: 126.6155,
     durationMinutes: 60,
     emoji: '🚣',
+    imageUrl: 'https://api.cdn.visitjeju.net/photomng/thumbnailpath/202410/16/54503744-a4b3-4e68-b819-47e67df59100.webp',
     tags: ['카약', '테우', '체험'],
   },
 ];

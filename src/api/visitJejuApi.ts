@@ -17,7 +17,8 @@ export async function fetchVisitJejuSpots(): Promise<Spot[]> {
   if (pending) return pending;
   pending = (async () => {
     try {
-      const { data } = await axios.get<{ spots: Spot[] }>(`${SERVER_URL}/api/visitjeju/spots`, { timeout: 90000 });
+      // 서버 콜드 스타트가 약 9초라 30초면 충분하다 (이전 90초는 발표 중 화면이 오래 멈춘다)
+      const { data } = await axios.get<{ spots: Spot[] }>(`${SERVER_URL}/api/visitjeju/spots`, { timeout: 30000 });
       if (!Array.isArray(data.spots) || !data.spots.length) throw new Error('empty');
       // 영업정보 링크는 서버가 보내지 않고 id에서 조합한다 (응답 222KB 절감)
       const spots = data.spots.map(s => (s.businessHoursUrl ? s : { ...s, businessHoursUrl: detailUrl(s.id) }));

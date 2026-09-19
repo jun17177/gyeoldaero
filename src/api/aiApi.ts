@@ -2,10 +2,10 @@ import axios from 'axios';
 import { Spot, TripSettings } from '../types';
 import { plannerHeaders } from '../constants/config';
 
-// 결대로 백엔드(gyeoldaero-server) 주소.
-// 실기기(Expo Go)에서는 localhost가 폰 자신을 가리키므로 Mac의 LAN IP를 써야 한다.
-// 우선순위: .env의 EXPO_PUBLIC_SERVER_URL > 아래 기본값 (`ipconfig getifaddr en0`로 확인)
-const BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL ?? 'http://192.168.219.114:3001';
+// 결대로 백엔드(server/) 주소. .env의 EXPO_PUBLIC_SERVER_URL 하나만 본다.
+// 하드코딩 기본값을 두면 값이 낡았을 때 엉뚱한 주소에 매달리므로 두지 않는다 —
+// 비어 있으면 호출을 건너뛰고 알고리즘 결과로 대체한다.
+const BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL ?? '';
 
 // 서버가 PLANNER_TOKEN을 쓰면 AI 라우트도 같은 토큰을 요구한다 (route-plan과 동일)
 const client = axios.create({ baseURL: BASE_URL, timeout: 20000, headers: plannerHeaders() });
@@ -26,6 +26,7 @@ export async function fetchSpotRecommendations(params: {
   settings: TripSettings;
   maxCount?: number;
 }): Promise<RecommendSpotsResult | null> {
+  if (!BASE_URL) return null; // 서버 주소 미설정 — 호출부가 알고리즘 결과로 대체한다
   try {
     const { data } = await client.post<RecommendSpotsResult>('/api/recommend-spots', {
       // 토큰 절약: 서버에 필요한 필드만 전송
@@ -58,6 +59,7 @@ export async function fetchTripComment(params: {
   settings: TripSettings;
   weatherLabel?: string;
 }): Promise<string | null> {
+  if (!BASE_URL) return null;
   try {
     const { data } = await client.post<{ comment: string }>('/api/trip-comment', {
       days: params.days,

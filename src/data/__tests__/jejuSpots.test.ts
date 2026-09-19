@@ -22,6 +22,16 @@ describe('제주 명소 시드 데이터', () => {
     expect(bad.map(s => s.name)).toEqual([]);
   });
 
+  it('모든 명소가 사진 URL을 가진다 (서버 없이도 카드가 비지 않도록)', () => {
+    const noImg = jejuSpots.filter(s => !s.imageUrl);
+    expect(noImg.map(s => s.name)).toEqual([]);
+  });
+
+  it('사진 URL이 https다', () => {
+    const bad = jejuSpots.filter(s => s.imageUrl && !s.imageUrl.startsWith('https://'));
+    expect(bad.map(s => s.name)).toEqual([]);
+  });
+
   it('이름이 중복되지 않는다 (타임라인 조회 혼선 방지)', () => {
     const names = jejuSpots.map(s => s.name);
     expect(new Set(names).size).toBe(names.length);
