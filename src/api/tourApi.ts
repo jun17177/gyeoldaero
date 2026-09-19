@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { TOUR_API_KEY } from '../constants/apiKeys';
 import { Spot } from '../types';
+import { fetchVisitJejuSpots, hasVisitJejuServer } from './visitJejuApi';
+import { findPhotoMatch } from '../utils/spotPhoto';
+import { haversineDistance } from '../algorithms/haversine';
 
 const BASE_URL = 'https://apis.data.go.kr/B551011/KorService2';
 const AREA_CODE_JEJU = '39';
@@ -61,7 +64,10 @@ function mapToSpot(item: TourItem): Spot {
 }
 
 async function apiGet<T>(endpoint: string, params: Record<string, string>): Promise<T[]> {
-  const res = await axios.get(`${BASE_URL}/${endpoint}`, {
+  if (!TOUR_API_KEY.trim()) throw new Error('관광 API 키가 설정되지 않았습니다.');
+  let res;
+  try {
+    res = await axios.get(`${BASE_URL}/${endpoint}`, {
     params: {
       serviceKey: TOUR_API_KEY,
       MobileOS: 'ETC',
@@ -73,6 +79,17 @@ async function apiGet<T>(endpoint: string, params: Record<string, string>): Prom
     },
     timeout: 10000,
   });
+  } catch (error) {
+    // Axios 오류 객체에는 인증키가 담긴 요청 설정이 포함되어 있어 그대로 전달하지 않는다.
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
+      throw new Error('관광 API 접근이 거절되었습니다. 서비스키와 이용 권한을 확인해주세요.');
+    }
+    throw new Error('관광 API에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+  }
+  const header = res.data?.response?.header;
+  if (res.data?.OpenAPI_ServiceResponse || (header?.resultCode !== undefined && String(header.resultCode) !== '0000' && String(header.resultCode) !== '0')) {
+    throw new Error('관광 API가 요청을 처리하지 못했습니다. 서비스키와 이용 상태를 확인해주세요.');
+  }
   const body = res.data?.response?.body;
   if (!body?.items?.item) return [];
   const items = body.items.item;
@@ -94,6 +111,10 @@ async function fetchByTypeId(contentTypeId: string): Promise<Spot[]> {
 export async function fetchJejuSpotsByCategory(
   category: 'all' | Spot['category'],
 ): Promise<Spot[]> {
+  if (hasVisitJejuServer) {
+    const spots = await fetchVisitJejuSpots();
+    return category === 'all' ? spots : spots.filter(s => s.category === category);
+  }
   const typeMap: Record<string, string[]> = {
     all:      ['12', '14', '28', '39'],
     nature:   ['12'],
@@ -115,6 +136,11 @@ export async function fetchNearbySpots(
   lon: number,
   radiusMeters = 5000,
 ): Promise<Spot[]> {
+  if (hasVisitJejuServer) {
+    return (await fetchVisitJejuSpots())
+      .filter(s => haversineDistance(lat, lon, s.lat, s.lon) * 1000 <= radiusMeters)
+      .sort((a, b) => haversineDistance(lat, lon, a.lat, a.lon) - haversineDistance(lat, lon, b.lat, b.lon));
+  }
   const items = await apiGet<TourItem>('locationBasedList2', {
     mapX: lon.toString(),
     mapY: lat.toString(),
@@ -132,6 +158,7 @@ export async function fetchNearbyRestaurants(
   lon: number,
   radiusMeters = 5000,
 ): Promise<Spot[]> {
+  if (hasVisitJejuServer) return (await fetchNearbySpots(lat, lon, radiusMeters)).filter(s => s.category === 'food');
   const items = await apiGet<TourItem>('locationBasedList2', {
     mapX: lon.toString(),
     mapY: lat.toString(),
@@ -146,7 +173,15 @@ export async function fetchNearbyRestaurants(
 
 // 명소 대표 이미지 조회 — imageUrl 없는 명소를 실제 사진으로 보강할 때 사용.
 // TourAPI contentId(숫자 id)면 상세 이미지, 그 외(시드 id)면 이름 키워드 검색. 실패 시 undefined.
-export async function fetchSpotImage(spot: { id: string; name: string }): Promise<string | undefined> {
+export async function fetchSpotImage(spot: Pick<Spot, 'id' | 'name' | 'lat' | 'lon' | 'photoAliases'>): Promise<string | undefined> {
+  if (hasVisitJejuServer) {
+    try {
+      const spots = await fetchVisitJejuSpots();
+      const byId = spots.find(s => s.id === spot.id)?.imageUrl;
+      // merge 단계와 같은 기준으로 맞춘다 (spotPhoto.findPhotoMatch)
+      return byId ?? findPhotoMatch(spot, spots)?.imageUrl;
+    } catch { return undefined; }
+  }
   interface ImageItem { originimgurl?: string; smallimageurl?: string }
   const detailImage = async (contentId: string): Promise<string | undefined> => {
     const imgs = await apiGet<ImageItem>('detailImage2', { contentId, imageYN: 'Y' });
@@ -175,6 +210,7 @@ export async function fetchSpotImage(spot: { id: string; name: string }): Promis
 
 // 명소 홈페이지 URL 조회 — BusinessHoursScreen에서 사용
 export async function fetchSpotHomepage(contentId: string): Promise<string | undefined> {
+  if (contentId.startsWith('visitjeju:')) return `https://www.visitjeju.net/kr/detail/view?contentsid=${encodeURIComponent(contentId.slice(10))}`;
   interface DetailItem { homepage?: string; }
   const items = await apiGet<DetailItem>('detailCommon2', {
     contentId,

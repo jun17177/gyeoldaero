@@ -1,4 +1,5 @@
 import { Spot } from '../types';
+import { findPhotoMatch } from './spotPhoto';
 
 // 이름 비교용 정규화 — 공백·괄호·구분점 제거
 function normalizeName(n: string): string {
@@ -20,5 +21,14 @@ export function isSameSpotName(a: string, b: string): boolean {
 // 시드가 앞에 오므로 테마 점수 정렬에서 성격 태그를 가진 시드가 자연히 우선된다.
 export function mergeSeedAndApiSpots(seed: Spot[], api: Spot[]): Spot[] {
   const fresh = api.filter(a => !seed.some(s => isSameSpotName(s.name, a.name)));
-  return [...seed, ...fresh];
+  const enriched = seed.map(s => {
+    if (s.imageUrl) return s;
+    // 이름 매칭 기준은 spotPhoto.findPhotoMatch 한 곳에만 둔다 — 지연 보강(fetchSpotImage)과
+    // 같은 기준을 써야 "dedupe로는 같은 곳인데 사진은 못 받는" 구멍이 생기지 않는다
+    const match = findPhotoMatch(s, api);
+    return match
+      ? { ...s, imageUrl: match.imageUrl, businessHoursUrl: s.businessHoursUrl ?? match.businessHoursUrl }
+      : s;
+  });
+  return [...enriched, ...fresh];
 }

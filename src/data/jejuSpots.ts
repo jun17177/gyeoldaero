@@ -136,6 +136,7 @@ export const jejuSpots: Spot[] = [
   {
     id: 'nexon',
     name: '넥슨컴퓨터박물관',
+    photoAliases: ['넥슨뮤지엄'], // 비짓제주 등록명
     category: 'culture',
     lat: 33.4890,
     lon: 126.4988,
@@ -163,26 +164,6 @@ export const jejuSpots: Spot[] = [
     durationMinutes: 90,
     emoji: '🛒',
     tags: ['재래시장', '간식', '야시장'],
-  },
-  {
-    id: 'seogwipomkt',
-    name: '서귀포매일올레시장',
-    category: 'food',
-    lat: 33.2533,
-    lon: 126.5618,
-    durationMinutes: 60,
-    emoji: '🍊',
-    tags: ['귤', '해산물', '시장'],
-  },
-  {
-    id: 'seongsamkt',
-    name: '성산어시장',
-    category: 'food',
-    lat: 33.4670,
-    lon: 126.9261,
-    durationMinutes: 60,
-    emoji: '🦞',
-    tags: ['회', '해산물', '신선'],
   },
   // 사진·감성
   {
@@ -280,6 +261,7 @@ export const jejuSpots: Spot[] = [
   {
     id: 'jungmun_surf',
     name: '중문색달 서핑',
+    photoAliases: ['중문색달해변'], // 비짓제주 등록명
     category: 'activity',
     lat: 33.2453,
     lon: 126.4126,
@@ -300,6 +282,7 @@ export const jejuSpots: Spot[] = [
   {
     id: 'zipline_jeju',
     name: '제주 집라인',
+    photoAliases: ['제주라프 짚라인'], // 비짓제주 등록명
     category: 'activity',
     lat: 33.3612,
     lon: 126.5143,
@@ -562,6 +545,7 @@ export const jejuSpots: Spot[] = [
   {
     id: 'topdong',
     name: '탑동광장',
+    photoAliases: ['탑동', '제주 탑동해변공연장'], // 비짓제주 등록명
     category: 'night',
     lat: 33.5170,
     lon: 126.5210,
@@ -572,6 +556,7 @@ export const jejuSpots: Spot[] = [
   {
     id: 'iho_teu',
     name: '이호테우해변 말등대',
+    photoAliases: ['이호테우 빨강말등대'], // 비짓제주 등록명
     category: 'night',
     lat: 33.4986,
     lon: 126.4526,
