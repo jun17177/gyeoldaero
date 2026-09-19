@@ -33,6 +33,7 @@ import {
 import { fetchJejuWeather, JejuWeather } from '../api/weatherApi';
 import { fetchSpotRecommendations } from '../api/aiApi';
 import { generateTimeline } from '../algorithms/generateTimeline';
+import { planTrip } from '../algorithms/planTrip';
 import { nearestNeighbor } from '../algorithms/nearestNeighbor';
 import { colors, spacing, radius, shadows } from '../constants/theme';
 
@@ -155,7 +156,7 @@ export default function SpotSelectScreen() {
         setUsedFallback(true); // API는 응답했지만 결과 0건 → 시드 데이터 유지
       }
     } catch (e) {
-      console.error('[SpotSelect] API 실패:', e);
+      console.warn('[SpotSelect] 명소 조회 실패:', e instanceof Error ? e.message : '조회 불가');
       setUsedFallback(true);
       // 오프라인이어도 이전에 캐시된 사진은 보여준다
       try {
@@ -242,6 +243,19 @@ export default function SpotSelectScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, spots]);
 
+  // 담은 명소를 목록 맨 위로 모은다 — 특히 '전체'는 명소가 수천 개라
+  // 자동 설정이 담아준 명소가 아래로 묻혀 보이지 않는 문제가 있었다.
+  // 다만 카드를 탭할 때마다 순서가 바뀌면 보고 있던 자리가 흔들리므로,
+  // 맨 위로 올릴 대상은 필터·검색어가 바뀌는 순간(= 목록을 새로 볼 때)에만 갱신한다.
+  const [pinnedIds, setPinnedIds] = useState<ReadonlySet<string>>(new Set());
+  const selectedRef = useRef(selected);
+  // 렌더 중 ref를 건드리지 않도록 커밋 후에 최신값을 담아둔다.
+  // 아래 핀 갱신 effect보다 먼저 선언해야 같은 커밋에서 최신 selected를 읽는다.
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+  useEffect(() => {
+    setPinnedIds(new Set(selectedRef.current.map(s => s.id)));
+  }, [filter, query, autoFilled]);
+
   const filtered = useMemo(() =>
     spots
       .filter(s => {
@@ -250,12 +264,15 @@ export default function SpotSelectScreen() {
         const matchQ   = !query || s.name.includes(query) || s.tags.some(t => t.includes(query));
         return matchCat && matchQ;
       })
-      // 테마 성격이 뚜렷한 명소 우선, 동점이면 계절 점수
+      // 담은 명소 → 테마 성격이 뚜렷한 명소 → 계절 점수 순
       .sort((a, b) =>
+        (pinnedIds.has(b.id) ? 1 : 0) - (pinnedIds.has(a.id) ? 1 : 0) ||
         themeScore(b, settings.themes) - themeScore(a, settings.themes) ||
         seasonScore(b, settings.season) - seasonScore(a, settings.season)),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [spots, filter, query]);
+  [spots, filter, query, pinnedIds]);
+
+  const keyExtractor = useCallback((item: Spot) => item.id, []);
 
   const toggleSpot = (spot: Spot) =>
     setSelected(prev =>
@@ -329,28 +346,33 @@ export default function SpotSelectScreen() {
     orderedSpots: Spot[],
     accomCoord: { lat: number; lon: number }
   ): Promise<Record<string, number>> => {
-    const durations: Record<string, number> = {};
-    let current = accomCoord;
+    // 방문 순서가 이미 확정돼 있어 모든 구간을 한꺼번에 조회할 수 있다.
+    // 순차로 돌면 1건당 약 350ms가 명소 수만큼 쌓여 최적화 버튼이 눈에 띄게 느려진다.
+    const legs = orderedSpots.map((spot, i) => ({
+      spot,
+      start: i === 0 ? accomCoord : { lat: orderedSpots[i - 1].lat, lon: orderedSpots[i - 1].lon },
+    }));
 
-    for (const spot of orderedSpots) {
-      try {
-        const routeSummary = await fetchDrivingRouteSummary({
-          start: current,
-          goal: { lat: spot.lat, lon: spot.lon },
-        });
-        durations[spot.id] = routeSummary?.durationMinutes ?? 20;
-      } catch (e) {
-        console.warn('[SpotSelect] 이동 시간 조회 실패, 기본값 사용:', e);
-        durations[spot.id] = 20;
-      }
-      current = { lat: spot.lat, lon: spot.lon };
-    }
+    const results = await Promise.all(
+      legs.map(async ({ spot, start }) => {
+        try {
+          const routeSummary = await fetchDrivingRouteSummary({
+            start,
+            goal: { lat: spot.lat, lon: spot.lon },
+          });
+          return [spot.id, routeSummary?.durationMinutes ?? 20] as const;
+        } catch (e) {
+          console.warn('[SpotSelect] 이동 시간 조회 실패, 기본값 사용:', e);
+          return [spot.id, 20] as const;
+        }
+      }),
+    );
 
-    return durations;
+    return Object.fromEntries(results);
   };
 
   const handleOptimize = async () => {
-    if (selected.length === 0) return;
+    if (selected.length === 0 || routeOptimizing) return;
     if (accommodation === 'custom' && !customCoords) {
       setCustomError('일정 최적화 전에 숙소 주소를 먼저 확인해주세요.');
       return;
@@ -382,9 +404,11 @@ export default function SpotSelectScreen() {
         settings: { ...settings, weather: weather?.condition ?? settings.weather },
       };
       // days는 실제 생성되는 일자 수로 확정 — 누락 방지로 늘어난 날짜까지 반영, 전 화면 표시와 일치
+      const planned = await planTrip(scheduleBase);
       const schedule: TripSchedule = {
         ...scheduleBase,
-        days: generateTimeline(scheduleBase).length,
+        ...planned,
+        spots: planned.spots ?? scheduleBase.spots,
       };
       navigation.navigate('Timeline', { schedule });
     } finally {
@@ -428,14 +452,18 @@ export default function SpotSelectScreen() {
     );
   };
 
-  const renderSpot = ({ item }: { item: Spot }) => (
+  // 카드마다 selected 배열을 훑지 않도록 id 집합으로 한 번만 만든다
+  const selectedIds = useMemo(() => new Set(selected.map(s => s.id)), [selected]);
+
+  const renderSpot = useCallback(({ item }: { item: Spot }) => (
     <SpotCard
       item={item}
-      isSelected={!!selected.find(s => s.id === item.id)}
+      isSelected={selectedIds.has(item.id)}
       isThemePick={themeScore(item, settings.themes) > 0}
       onPress={toggleSpot}
     />
-  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [selectedIds, settings.themes]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -478,8 +506,13 @@ export default function SpotSelectScreen() {
         </TouchableOpacity>
       )}
 
-      {/* 필터 칩 */}
-      <View style={styles.filterRow}>
+      {/* 필터 칩 — 칩이 화면 폭을 넘으면 가로 스크롤 (마지막 칩 잘림 방지) */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
+        contentContainerStyle={styles.filterRow}
+      >
         {visibleFilters.map(f => (
           <TouchableOpacity
             key={f.id}
@@ -492,7 +525,7 @@ export default function SpotSelectScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {/* 명소 그리드 */}
       {loading ? (
@@ -502,12 +535,19 @@ export default function SpotSelectScreen() {
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={item => item.id}
+          keyExtractor={keyExtractor}
           renderItem={renderSpot}
           numColumns={2}
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
+          // 명소가 3000곳 가까이라 기본 설정으로는 스크롤이 버벅인다.
+          // 화면 밖 카드는 적게 들고 있도록 창을 좁힌다.
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={50}
+          windowSize={7}
+          removeClippedSubviews
           ListHeaderComponent={renderAiHeader}
           ListEmptyComponent={
             <StateView
@@ -532,10 +572,12 @@ export default function SpotSelectScreen() {
           <View style={styles.daysHeaderRow}>
             <Text style={styles.daysText}>{formatDays(days)}</Text>
             {weather && (
-              <View style={styles.weatherChip}>
-                <Text style={styles.weatherChipText}>
-                  {weather.emoji} {weather.label}
-                  {weather.tempC != null ? ` ${Math.round(weather.tempC)}°` : ''}
+              // isMock이면 조회 실패로 기본값(맑음)을 쓰는 상태 — 실제 예보처럼 보이지 않게 표시한다
+              <View style={[styles.weatherChip, weather.isMock && styles.weatherChipMock]}>
+                <Text style={[styles.weatherChipText, weather.isMock && styles.weatherChipTextMock]}>
+                  {weather.isMock
+                    ? '날씨 정보 없음'
+                    : `${weather.emoji} ${weather.label}${weather.tempC != null ? ` ${Math.round(weather.tempC)}°` : ''}`}
                 </Text>
               </View>
             )}
@@ -640,11 +682,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   searchInput: { flex: 1, fontSize: 13, color: colors.text },
+  // RN ScrollView 기본 스타일이 { flexGrow: 1, flexShrink: 1 }이라 둘 다 0으로 덮어써야 한다.
+  // grow만 막으면 세로 공간이 모자랄 때 shrink가 칩 행을 납작하게 눌러 글씨가 잘린다.
+  filterScroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+    minHeight: 34,
+    marginBottom: spacing.sm,
+  },
   filterRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.xl,
     gap: 8,
-    marginBottom: spacing.sm,
   },
   filterChip: {
     paddingHorizontal: 14,
@@ -687,6 +737,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.primary,
   },
+  weatherChipMock: { backgroundColor: colors.border },
+  weatherChipTextMock: { color: colors.textMuted },
   fallbackBanner: {
     flexDirection: 'row',
     alignItems: 'center',

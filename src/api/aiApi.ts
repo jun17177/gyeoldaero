@@ -1,12 +1,14 @@
 import axios from 'axios';
 import { Spot, TripSettings } from '../types';
+import { plannerHeaders } from '../constants/config';
 
 // 결대로 백엔드(gyeoldaero-server) 주소.
 // 실기기(Expo Go)에서는 localhost가 폰 자신을 가리키므로 Mac의 LAN IP를 써야 한다.
 // 우선순위: .env의 EXPO_PUBLIC_SERVER_URL > 아래 기본값 (`ipconfig getifaddr en0`로 확인)
 const BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL ?? 'http://192.168.219.114:3001';
 
-const client = axios.create({ baseURL: BASE_URL, timeout: 20000 });
+// 서버가 PLANNER_TOKEN을 쓰면 AI 라우트도 같은 토큰을 요구한다 (route-plan과 동일)
+const client = axios.create({ baseURL: BASE_URL, timeout: 20000, headers: plannerHeaders() });
 
 export interface SpotRecommendation {
   spotId: string;

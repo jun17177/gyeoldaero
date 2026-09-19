@@ -20,6 +20,8 @@ import { fetchTripComment } from '../api/aiApi';
 import { enrichMealOptions } from '../api/mealRecommend';
 import { colors, spacing, radius, fonts } from '../constants/theme';
 import { formatStartDate } from '../utils/date';
+import { environmentLabel } from '../utils/spotEnvironment';
+import { findSpotOf } from '../utils/findSpot';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Timeline'>;
 type Route = RouteProp<RootStackParamList, 'Timeline'>;
@@ -67,14 +69,14 @@ export default function TimelineScreen() {
   const [saveModal, setSaveModal] = useState(false);
   // 저장된 일정을 다시 열면 원본 이름으로 초기화 (신규 생성 시엔 '제주 여행' 기본값)
   const [scheduleName, setScheduleName] = useState(schedule.name || '제주 여행');
-  const [aiComment, setAiComment] = useState('');
+  const [aiComment, setAiComment] = useState(schedule.aiReason ?? '');
   const [aiCommentLoading, setAiCommentLoading] = useState(false);
 
   // AI 일정 코멘트 — 실패해도 화면은 정상 동작 (코멘트만 미표시)
   // 저장된 일정을 다시 연 경우엔 보관된 코멘트를 재사용해 API 재호출을 막는다
   useEffect(() => {
-    if (schedule.aiComment) {
-      setAiComment(schedule.aiComment);
+    if (schedule.aiComment || schedule.aiReason) {
+      setAiComment(schedule.aiComment || schedule.aiReason || '');
       return;
     }
     let cancelled = false;
@@ -97,10 +99,11 @@ export default function TimelineScreen() {
   // 식사 슬롯에 동선 주변 실제 식당 3곳 연결 — 완료 전/실패 시엔 기본 옵션 표시
   const [enrichedPlans, setEnrichedPlans] = useState<DayPlan[] | null>(null);
   useEffect(() => {
-    // 저장된 일정을 다시 연 경우(dayPlans 보유)는 이미 보강된 상태라 건너뜀
-    if (schedule.dayPlans?.length) return;
+    // 기본 메뉴가 들어 있는 신규 일정도 실제 식당 추천이 필요하다.
+    if (schedule.dayPlans?.length && (schedule.mealOptionsEnriched || !schedule.planSource)) return;
     let cancelled = false;
-    enrichMealOptions(basePlans, schedule)
+    // 화면을 벗어나면 남은 조회를 실제로 멈춘다 (결과만 버리면 호출은 계속 나간다)
+    enrichMealOptions(basePlans, schedule, () => cancelled)
       .then(plans => { if (!cancelled) setEnrichedPlans(plans); })
       .catch(e => console.warn('[Timeline] 식당 추천 실패:', e));
     return () => { cancelled = true; };
@@ -120,32 +123,40 @@ export default function TimelineScreen() {
       spots: newSpots,
       manualSpotOrder: true,
       dayPlans: undefined,
+      mealOptionsEnriched: false,
+      moveDurationsBySpotId: undefined,
+      planSource: 'algorithm',
+      aiReason: undefined,
+      aiComment: undefined,
     };
     setSchedule({ ...base, days: generateTimeline(base).length });
     setEnrichedPlans(null); // 식당 추천은 새 동선 기준으로 다시
+    setAiComment('');
     setMealChoice({});      // 슬롯 인덱스가 바뀌므로 선택 초기화
   };
 
-  const moveSpot = (name: string, dir: -1 | 1) => {
+  // 이름이 아니라 명소 자체로 다룬다 — 이름이 같은 명소가 둘 있으면
+  // 이름 비교로는 엉뚱한 곳이 움직이거나 둘 다 삭제된다
+  const moveSpot = (target: Spot, dir: -1 | 1) => {
     const spots = [...schedule.spots];
-    const i = spots.findIndex(s => s.name === name);
+    const i = spots.findIndex(s => s.id === target.id);
     const j = i + dir;
     if (i < 0 || j < 0 || j >= spots.length) return;
     [spots[i], spots[j]] = [spots[j], spots[i]];
     applySpotsChange(spots);
   };
 
-  const removeSpot = (name: string) => {
+  const removeSpot = (target: Spot) => {
     if (schedule.spots.length <= 1) {
       Alert.alert('삭제 불가', '최소 1개의 명소는 남아 있어야 해요.');
       return;
     }
-    Alert.alert('명소 빼기', `"${name}"을(를) 일정에서 뺄까요?`, [
+    Alert.alert('명소 빼기', `"${target.name}"을(를) 일정에서 뺄까요?`, [
       { text: '취소', style: 'cancel' },
       {
         text: '빼기',
         style: 'destructive',
-        onPress: () => applySpotsChange(schedule.spots.filter(s => s.name !== name)),
+        onPress: () => applySpotsChange(schedule.spots.filter(s => s.id !== target.id)),
       },
     ]);
   };
@@ -168,6 +179,7 @@ export default function TimelineScreen() {
           ...schedule,
           name: scheduleName,
           dayPlans: plansWithChoices,
+          mealOptionsEnriched: Boolean(enrichedPlans) || schedule.mealOptionsEnriched,
           aiComment: aiComment || undefined,
         },
         scheduleName,
@@ -186,7 +198,8 @@ export default function TimelineScreen() {
   };
 
   const renderItem = (item: TimelineItem, idx: number, isLast: boolean, day: number) => {
-    const spotCategory = schedule.spots.find(s => s.name === item.name)?.category;
+    const matchedSpot = findSpotOf(schedule.spots, item);
+    const spotCategory = matchedSpot?.category;
     const mealKey = `${day}-${idx}`;
     const chosenMeal = mealChoice[mealKey] ?? item.selectedOption;
     return (
@@ -203,7 +216,7 @@ export default function TimelineScreen() {
               <Text style={styles.itemMeta}>
                 {item.time}
                 {item.duration > 0 ? ` · ${item.duration}분` : ''}
-                {item.type === 'spot' ? ' · 야외' : ''}
+                {item.type === 'spot' && matchedSpot ? ` · ${environmentLabel(matchedSpot)}` : ''}
               </Text>
               {item.type === 'meal' && item.options && (
                 <View style={styles.mealOptRow}>
@@ -237,13 +250,13 @@ export default function TimelineScreen() {
           {/* 명소만 편집 가능: 순서 위/아래 이동 + 일정에서 빼기 */}
           {item.type === 'spot' && (
             <View style={styles.spotEditRow}>
-              <TouchableOpacity style={styles.spotEditBtn} onPress={() => moveSpot(item.name, -1)} activeOpacity={0.6}>
+              <TouchableOpacity style={styles.spotEditBtn} onPress={() => matchedSpot && moveSpot(matchedSpot, -1)} activeOpacity={0.6}>
                 <Ionicons name="chevron-up" size={15} color={colors.textMuted} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.spotEditBtn} onPress={() => moveSpot(item.name, 1)} activeOpacity={0.6}>
+              <TouchableOpacity style={styles.spotEditBtn} onPress={() => matchedSpot && moveSpot(matchedSpot, 1)} activeOpacity={0.6}>
                 <Ionicons name="chevron-down" size={15} color={colors.textMuted} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.spotEditBtn} onPress={() => removeSpot(item.name)} activeOpacity={0.6}>
+              <TouchableOpacity style={styles.spotEditBtn} onPress={() => matchedSpot && removeSpot(matchedSpot)} activeOpacity={0.6}>
                 <Ionicons name="close" size={15} color={colors.danger} />
               </TouchableOpacity>
             </View>
@@ -295,6 +308,9 @@ export default function TimelineScreen() {
           <View style={styles.tag}>
             <Text style={styles.tagText}>명소 {schedule.spots.length}곳</Text>
           </View>
+          {!!schedule.planSource && <View style={styles.tag}>
+            <Text style={styles.tagText}>{schedule.planSource === 'ai' ? 'AI 추천 동선' : '기본 동선'}</Text>
+          </View>}
           <View style={styles.tag}>
             <Text style={styles.tagText}>{ACCOM_LABEL[schedule.accommodation]}</Text>
           </View>
@@ -332,6 +348,7 @@ export default function TimelineScreen() {
         {dayPlans.map(plan => (
           <View key={plan.day} style={styles.daySection}>
             <Text style={styles.dayLabel}>DAY {plan.day}</Text>
+            {!!plan.note && <Text style={{ color: colors.textMuted, marginBottom: spacing.sm }}>{plan.note}</Text>}
             {plan.items.map((item, idx) =>
               renderItem(item, idx, idx === plan.items.length - 1, plan.day)
             )}
