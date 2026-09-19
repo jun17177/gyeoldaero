@@ -1,5 +1,8 @@
 import { Spot } from '../types';
 
+export const LUGGAGE_FACTOR = { light: 1, medium: 1.1, heavy: 1.2, very_heavy: 1.4 };
+export const SEASON_FACTOR = { spring: 1, summer: 1.1, fall: 1, winter: 1.15 };
+
 export const getTransportMode = (luggage: string): 'transit' | 'car' =>
   ['light', 'medium'].includes(luggage) ? 'transit' : 'car';
 
@@ -28,11 +31,11 @@ export function calcTripDays(params: {
   total += mealTime + bufferTime;
   total *= luggageFactor * wf;
 
-  const firstDay = params.firstDayArrival
-    ? (params.endTime - params.firstDayArrival) * 60
+  const firstDay = params.firstDayArrival !== undefined
+    ? Math.max(0, (params.endTime - params.firstDayArrival) * 60)
     : dailyMinutes;
-  const lastDay = params.lastDayDeparture
-    ? (params.lastDayDeparture - params.startTime) * 60
+  const lastDay = params.lastDayDeparture !== undefined
+    ? Math.max(0, (params.lastDayDeparture - params.startTime) * 60)
     : dailyMinutes;
 
   if (total <= firstDay) return 1;

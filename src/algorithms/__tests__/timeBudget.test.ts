@@ -20,6 +20,12 @@ describe('getTransportMode', () => {
 describe('calcTripDays', () => {
   const base = { startTime: 9, endTime: 19, luggage: 'light' as const };
 
+  it('자정 도착을 미설정으로 취급하지 않는다', () => {
+    const spots = [spot('a', 500)];
+    expect(calcTripDays({ ...base, spots, firstDayArrival: 0 })).toBe(1);
+    expect(calcTripDays({ ...base, spots })).toBe(2);
+  });
+
   it('명소 1개 소량 → 당일치기(1일)', () => {
     // 60(체류) + 20(이동) + 150(식사+버퍼) = 230분 ≤ 첫날 600분
     expect(calcTripDays({ ...base, spots: [spot('a', 60)] })).toBe(1);

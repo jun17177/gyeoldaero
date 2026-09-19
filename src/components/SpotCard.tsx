@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Spot } from '../types';
@@ -29,6 +29,7 @@ interface Props {
 
 // 명소 그리드 카드 — 사진(없으면 카테고리 아이콘) + 이름·분류·체류시간 + 뱃지
 function SpotCard({ item, isSelected, isThemePick, onPress }: Props) {
+  const [failedUri, setFailedUri] = useState<string>();
   return (
     <TouchableOpacity
       style={[styles.card, isSelected && styles.cardSelected]}
@@ -41,8 +42,9 @@ function SpotCard({ item, isSelected, isThemePick, onPress }: Props) {
         </View>
       )}
       <View style={styles.imageArea}>
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.image} />
+        {item.imageUrl && failedUri !== item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.image}
+            onError={() => setFailedUri(item.imageUrl)} />
         ) : (
           <Ionicons name={CATEGORY_ICON[item.category] ?? 'location-outline'} size={38} color={colors.primary} />
         )}

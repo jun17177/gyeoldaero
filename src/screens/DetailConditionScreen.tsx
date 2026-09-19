@@ -124,13 +124,13 @@ export default function DetailConditionScreen() {
   const prevSettings = route.params?.settings ?? {};
   const mode = route.params?.mode ?? 'manual';
 
-  const [startTime, setStartTime] = useState(9);
-  const [endTime, setEndTime]     = useState(19);
-  const [arrival, setArrival]     = useState<number | undefined>(undefined);
-  const [departure, setDeparture] = useState<number | undefined>(undefined);
-  const [people, setPeople]       = useState(2);
-  const [budget, setBudget]       = useState(1);
-  const [luggage, setLuggage]     = useState<TripSettings['luggage']>('light');
+  const [startTime, setStartTime] = useState(prevSettings.startTime ?? 9);
+  const [endTime, setEndTime]     = useState(prevSettings.endTime ?? 19);
+  const [arrival, setArrival]     = useState<number | undefined>(prevSettings.firstDayArrival);
+  const [departure, setDeparture] = useState<number | undefined>(prevSettings.lastDayDeparture);
+  const [people, setPeople]       = useState(prevSettings.people ?? 2);
+  const [budget, setBudget]       = useState(prevSettings.budget ?? 1);
+  const [luggage, setLuggage]     = useState<TripSettings['luggage']>(prevSettings.luggage ?? 'light');
   const [arrivalModal, setArrivalModal]   = useState(false);
   const [departureModal, setDepartureModal] = useState(false);
 

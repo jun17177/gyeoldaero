@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.primaryLight },
   webview: { flex: 1, backgroundColor: 'transparent' },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,

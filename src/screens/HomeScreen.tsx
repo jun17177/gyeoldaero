@@ -40,7 +40,7 @@ export default function HomeScreen() {
           <Text style={styles.orText}>또는</Text>
           <TouchableOpacity
             style={styles.outlineButton}
-            onPress={() => navigation.navigate('TravelStyle', { mode: 'auto' })}
+            onPress={() => navigation.navigate('AutoSetup')}
             activeOpacity={0.85}
           >
             <Text style={styles.outlineButtonText}>자동 설정 — 취향대로 추천받기</Text>
