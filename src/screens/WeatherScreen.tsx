@@ -58,6 +58,8 @@ export default function WeatherScreen() {
   const { schedule, scheduleName } = route.params;
 
   const [forecast, setForecast]     = useState<WeatherDay[]>([]);
+  // 예보 조회 실패 시 가짜 데이터가 실제 예보처럼 보이지 않도록 안내한다
+  const [forecastIsMock, setForecastIsMock] = useState(false);
   const [loading, setLoading]       = useState(true);
   const [selectedStart, setSelected] = useState<number | null>(null);
   const [saving, setSaving]          = useState(false);
@@ -66,7 +68,7 @@ export default function WeatherScreen() {
 
   useEffect(() => {
     fetchWeatherForecast()
-      .then(setForecast)
+      .then(({ days, isMock }) => { setForecast(days); setForecastIsMock(isMock); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -150,6 +152,16 @@ export default function WeatherScreen() {
       </View>
 
       {/* 안내 */}
+      {forecastIsMock && !loading && (
+        // 조회 실패로 채운 가짜 예보 — 실제 예보로 오해하지 않도록 알린다
+        <View style={styles.warnBanner}>
+          <Ionicons name="cloud-offline-outline" size={15} color={colors.warning} />
+          <Text style={[styles.warnText, { color: colors.warning }]}>
+            예보를 불러오지 못해 임시 날씨를 보여드려요 · 날짜는 그대로 고를 수 있어요
+          </Text>
+        </View>
+      )}
+
       {outOfRange ? (
         <View style={styles.warnBanner}>
           <Ionicons name="alert-circle-outline" size={15} color={colors.danger} />
