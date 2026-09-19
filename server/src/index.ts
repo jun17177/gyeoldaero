@@ -1,0 +1,45 @@
+import 'dotenv/config';
+import express from 'express';
+import compression from 'compression';
+import cors from 'cors';
+import aiRouter from './routes/ai';
+import plannerRouter from './routes/planner';
+import { getVisitJejuSpots } from './visitJeju';
+import { requirePlannerToken } from './routes/requireToken';
+
+const app = express();
+// 명소 목록이 1MB가 넘어 압축 여부가 앱 첫 로딩 체감을 좌우한다 (1.26MB → 약 250KB)
+app.use(compression());
+// TODO(배포 전): origin을 앱 도메인으로 제한할 것
+app.use(cors());
+app.use(express.json({ limit: '1mb' }));
+
+app.get('/health', (_req, res) => {
+  res.json({ ok: true, provider: process.env.LLM_PROVIDER ?? 'claude' });
+});
+
+// 명소 목록은 LLM을 쓰지 않고 앱이 토큰 없이 부르므로, 토큰 검사보다 먼저 등록한다.
+// (app.use('/api', ...)는 /api 아래 전체에 걸리므로 순서가 중요하다)
+app.get('/api/visitjeju/spots', async (_req, res) => {
+  try { res.json({ spots: await getVisitJejuSpots() }); }
+  catch { res.status(503).json({ error: 'visitjeju_unavailable' }); }
+});
+
+// LLM을 호출하는 라우트는 모두 토큰 검사를 거친다 (ai/planner 양쪽)
+app.use('/api', requirePlannerToken, aiRouter);
+app.use('/api', requirePlannerToken, plannerRouter);
+
+// 에러 핸들러 — 잘못된 JSON 등도 HTML 스택트레이스 대신 JSON으로 응답
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err instanceof SyntaxError) {
+    return res.status(400).json({ error: '잘못된 JSON 형식입니다' });
+  }
+  console.error('[server]', err);
+  res.status(500).json({ error: '서버 오류가 발생했습니다' });
+});
+
+const PORT = Number(process.env.PORT ?? 3001);
+app.listen(PORT, () => {
+  console.log(`결대로 서버 실행 중: http://localhost:${PORT}`);
+  console.log(`LLM Provider: ${process.env.LLM_PROVIDER ?? 'claude'}`);
+});
