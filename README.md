@@ -200,6 +200,8 @@ import { colors } from '../constants/theme';
 AI 동선 설계·명소 추천·비짓제주 명소 목록을 담당합니다. Claude API 키를 앱 번들에
 넣지 않기 위해 앱이 이 서버를 거쳐 갑니다.
 
+서버 소스는 이 저장소의 `server/` 한 곳에만 있습니다.
+
 ```bash
 cd server
 npm install
