@@ -285,15 +285,48 @@ EXPO_PUBLIC_SERVER_URL=http://192.168.0.12:3001
 cd server && npm run build:snapshot
 ```
 
-### 외부에 배포할 경우
+### 배포하기 (Render 기준)
 
-LAN IP 의존을 없애려면 Render·Railway 같은 곳에 `server/`를 올리고
-`EXPO_PUBLIC_SERVER_URL`을 그 주소로 바꾸면 됩니다. 이때는 아래 두 가지를
-반드시 설정하세요 (지금은 로컬 전용이라 열려 있습니다).
+LAN IP 의존을 없애려면 서버를 외부에 올리면 됩니다. `server/render.yaml`이
+준비돼 있어 저장소만 연결하면 됩니다.
 
-- `PLANNER_TOKEN` — 설정하면 앱과 서버가 같은 값을 써야 하며, 주소만 아는
-  외부인이 Anthropic 크레딧을 쓰는 것을 막습니다. 앱 `.env`에도
-  `EXPO_PUBLIC_PLANNER_API_TOKEN`으로 같은 값을 넣습니다.
+1. [Render](https://render.com) 가입 → **New → Blueprint** → 이 저장소 선택
+2. `server/render.yaml`을 읽어 `gyeoldaero-server` 서비스가 만들어집니다
+3. 대시보드에서 아래 환경변수를 직접 입력합니다 (저장소에 키를 두지 않기 위해
+   `sync: false`로 비워 둔 값들입니다)
+
+   | 변수 | 설명 |
+   |---|---|
+   | `ANTHROPIC_API_KEY` | console.anthropic.com에서 발급 |
+   | `VISITJEJU_API_KEY` | 비짓제주 오픈API |
+   | `PLANNER_TOKEN` | 아무 긴 문자열. 앱과 **같은 값**을 써야 합니다 |
+   | `ALLOWED_ORIGINS` | 웹에서 안 쓰면 비워도 됩니다 |
+
+4. 배포되면 주소(`https://....onrender.com`)를 앱 `.env`에 넣습니다
+
+   ```
+   EXPO_PUBLIC_SERVER_URL=https://gyeoldaero-server.onrender.com
+   EXPO_PUBLIC_PLANNER_API_TOKEN=<PLANNER_TOKEN과 같은 값>
+   ```
+
+5. Expo를 재시작합니다 (환경변수는 번들에 인라인되므로 새로고침만으로는 반영 안 됨)
+
+배포 후 확인:
+
+```bash
+curl https://<주소>/health                      # {"ok":true,...}
+curl https://<주소>/api/visitjeju/spots -o /dev/null -w "%{time_total}s\n"
+```
+
+**무료 플랜은 15분 무활동 시 잠들고 깨는 데 약 1분 걸립니다.** 발표 직전에
+한 번 호출해 깨워두세요. 콜드 스타트가 곤란하면 Fly.io·Northflank 같은
+콜드 스타트 없는 곳을 쓰면 됩니다 (`render.yaml` 대신 각 플랫폼 설정 필요).
+
+### 배포 시 반드시 설정할 것
+
+- `PLANNER_TOKEN` — 주소만 아는 외부인이 Anthropic 크레딧을 쓰는 것을 막습니다.
+  앱 `.env`의 `EXPO_PUBLIC_PLANNER_API_TOKEN`에 같은 값을 넣어야 합니다.
+  **둘 중 하나만 넣으면 AI 기능이 401로 막힙니다.**
 - `ALLOWED_ORIGINS` — 브라우저에서 호출할 출처를 쉼표로 나열합니다.
   비워두면 모두 허용합니다(로컬 개발 기본값). Expo 네이티브 앱 요청에는
   Origin 헤더가 없어 이 설정과 무관하게 동작합니다.

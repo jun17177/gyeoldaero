@@ -1,0 +1,32 @@
+# Render 배포 설정 — 저장소를 연결하면 이 파일대로 서비스가 만들어진다.
+# (Render 대시보드 → New → Blueprint → 이 저장소 선택)
+services:
+  - type: web
+    name: gyeoldaero-server
+    runtime: node
+    plan: free
+    region: singapore          # 제주에서 가장 가까운 리전
+    rootDir: server            # 저장소 안에서 서버가 있는 위치
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      # 값은 Render 대시보드에서 직접 입력한다 (저장소에 키를 두지 않기 위함)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VISITJEJU_API_KEY
+        sync: false
+      - key: PLANNER_TOKEN
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: LLM_PROVIDER
+        value: claude
+      - key: PLANNER_MODEL
+        value: claude-sonnet-5
+      - key: AI_MODEL
+        value: claude-haiku-4-5
+      - key: PLANNER_EFFORT
+        value: low
+      - key: NODE_VERSION
+        value: "20"
