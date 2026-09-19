@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
 import { z } from 'zod';
 
 const itemSchema = z.object({
@@ -94,12 +97,58 @@ function topUpInBackground(): void {
   })();
 }
 
+// 저장소에 담아둔 명소 스냅샷. 배포 환경(Render 무료 등)은 재시작할 때마다 메모리가 비고
+// 파일시스템도 초기화돼, 첫 요청이 수집 30초를 그대로 기다리게 된다.
+// 스냅샷을 먼저 돌려주고 최신 데이터는 뒤에서 받아 교체한다.
+// 갱신은 `npm run build:snapshot`.
+const SNAPSHOT_PATH = path.join(__dirname, '..', 'data', 'spots-snapshot.json.gz');
+// 스냅샷으로 응답하는 동안 갱신이 돌 시간을 준다 (갱신이 끝나면 24시간짜리로 교체됨)
+const SNAPSHOT_GRACE_MS = 60 * 60 * 1000;
+
+function loadSnapshot(): VisitSpot[] | undefined {
+  try {
+    const raw = zlib.gunzipSync(fs.readFileSync(SNAPSHOT_PATH)).toString('utf8');
+    const spots = JSON.parse(raw) as VisitSpot[];
+    return Array.isArray(spots) && spots.length ? spots : undefined;
+  } catch {
+    return undefined; // 스냅샷이 없어도 동작한다 — 첫 요청이 수집을 기다릴 뿐
+  }
+}
+
+// 응답을 막지 않고 뒤에서 최신 데이터를 받아 캐시를 교체한다
+let refreshing = false;
+function refreshInBackground(): void {
+  if (refreshing) return;
+  refreshing = true;
+  void (async () => {
+    try {
+      for (let i = 0; i < SWEEPS_PER_REFRESH; i++) {
+        const merged = new Map((cache?.spots ?? []).map(s => [s.id, s]));
+        absorb(merged, await sweepOnce());
+        if (merged.size) cache = { spots: [...merged.values()], expires: Date.now() + CACHE_TTL_MS };
+      }
+    } catch { /* 갱신 실패는 무시 — 기존 캐시를 계속 쓴다 */ }
+    finally { refreshing = false; }
+  })();
+}
+
 export async function getVisitJejuSpots(): Promise<VisitSpot[]> {
   if (cache && cache.expires > Date.now()) return cache.spots;
+
+  // 캐시가 없으면 스냅샷으로 즉시 응답하고 갱신은 뒤로 미룬다
+  if (!cache) {
+    const snapshot = loadSnapshot();
+    if (snapshot) cache = { spots: snapshot, expires: Date.now() + SNAPSHOT_GRACE_MS };
+  }
+  if (cache) {
+    refreshInBackground();
+    return cache.spots;
+  }
+
+  // 스냅샷도 없을 때만 수집을 기다린다
   if (pending) return pending;
   pending = (async () => {
-    // 이전 결과 위에 쌓는다 — 이번 수집이 불완전해도 이미 확보한 명소가 사라지지 않는다
-    const merged = new Map((cache?.spots ?? []).map(s => [s.id, s]));
+    const merged = new Map<string, VisitSpot>();
     absorb(merged, await sweepOnce());
     const spots = [...merged.values()];
     if (!spots.length) throw new Error('visitjeju_empty');
@@ -107,7 +156,8 @@ export async function getVisitJejuSpots(): Promise<VisitSpot[]> {
     topUpInBackground(); // 나머지 수집분은 응답을 막지 않고 뒤에서 채운다
     return spots;
   })();
+  // 여기까지 왔다는 건 캐시도 스냅샷도 없었다는 뜻이라, 실패하면 돌려줄 것이 없다
   try { return await pending; }
-  catch { if (cache) return cache.spots; throw new Error('visitjeju_unavailable'); }
+  catch { throw new Error('visitjeju_unavailable'); }
   finally { pending = undefined; }
 }
