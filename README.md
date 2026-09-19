@@ -195,6 +195,20 @@ import { colors } from '../constants/theme';
 
 ---
 
+## 테스트
+
+```bash
+npm test                          # 전체
+npx jest --selectProjects logic   # 알고리즘·유틸만 (빠름)
+npx jest --selectProjects ui      # 화면·컴포넌트 렌더
+cd server && npx tsx --test tests/*.test.ts   # 백엔드
+```
+
+파일명으로 나뉩니다 — 순수 로직은 `*.test.ts`(Node 환경), 화면 렌더는
+`*.test.tsx`(Expo 환경)입니다. 새 테스트를 만들 때 확장자를 맞춰주세요.
+
+---
+
 ## 백엔드 서버 (server/)
 
 AI 동선 설계·명소 추천·비짓제주 명소 목록을 담당합니다. Claude API 키를 앱 번들에

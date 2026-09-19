@@ -25,6 +25,8 @@ const SEARCH_URL = (name: string) =>
 function LinkButton({ url }: { url: string }) {
   return (
     <TouchableOpacity
+      testID="link-button"
+      accessibilityLabel="지도에서 열기"
       style={styles.linkBtn}
       onPress={() => Linking.openURL(url)}
       activeOpacity={0.75}
