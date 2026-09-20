@@ -37,6 +37,7 @@ import { generateTimeline } from '../algorithms/generateTimeline';
 import { planTrip } from '../algorithms/planTrip';
 import { nearestNeighbor } from '../algorithms/nearestNeighbor';
 import { colors, spacing, radius, shadows } from '../constants/theme';
+import { AI_MAX_SPOTS } from '../constants/config';
 
 type Nav = StackNavigationProp<RootStackParamList, 'SpotSelect'>;
 type Route = RouteProp<RootStackParamList, 'SpotSelect'>;
@@ -559,6 +560,11 @@ export default function SpotSelectScreen() {
               </View>
             )}
           </View>
+          {selected.length > AI_MAX_SPOTS && (
+            <Text style={styles.aiLimitNote}>
+              명소가 {AI_MAX_SPOTS}개를 넘어 AI 동선 설계 대신 기본 알고리즘으로 짭니다
+            </Text>
+          )}
           <Text style={styles.daysSub}>
             {selected.length > 0
               ? `명소 ${selected.length}개 담김 · 자동 계산`
@@ -632,7 +638,11 @@ export default function SpotSelectScreen() {
           activeOpacity={0.85}
         >
           {routeOptimizing ? (
-            <ActivityIndicator size="small" color="#fff" />
+            // AI 동선 설계가 10초 안팎 걸려, 빈 스피너만 돌면 멈춘 것처럼 보인다
+            <View style={styles.optimizeBusyRow}>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.optimizeBtnText}>AI가 동선을 짜는 중…</Text>
+            </View>
           ) : (
             <Text style={styles.optimizeBtnText}>일정 최적화하기 →</Text>
           )}
@@ -714,6 +724,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.primary,
   },
+  aiLimitNote: { fontSize: 11, color: colors.warning, marginBottom: 4 },
+  optimizeBusyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   weatherChipMock: { backgroundColor: colors.border },
   weatherChipTextMock: { color: colors.textMuted },
   fallbackBanner: {

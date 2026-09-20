@@ -3,7 +3,10 @@ import { PLANNER_API_URL, plannerHeaders } from '../constants/config';
 import { AiRoutePlan, RoutePlanRequest } from '../types';
 
 // 서버가 Claude 응답을 검증하고 필요하면 한 번 재시도까지 하므로 넉넉하게 기다린다
-const TIMEOUT_MS = 150_000;
+// 사용자가 화면에서 기다리는 요청이라 오래 끌지 않는다.
+// 서버가 잠들어 있으면 깨는 데 50초가 걸릴 수 있는데, 그때까지 스피너만 돌리느니
+// 알고리즘 일정으로 넘어가는 편이 낫다 (결과는 어느 쪽이든 나온다).
+const TIMEOUT_MS = 35_000;
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 

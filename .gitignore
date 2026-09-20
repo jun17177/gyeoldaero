@@ -44,3 +44,9 @@ yarn-error.*
 # 저장소에 함께 둔 백엔드의 의존성·빌드 산출물
 server/node_modules/
 server/dist/
+
+# expo export 산출물 (server/public으로 복사해 커밋한다)
+dist/
+
+# 웹 빌드 결과물에는 EXPO_PUBLIC_* 키가 그대로 박히므로 커밋하지 않는다.
+server/public/

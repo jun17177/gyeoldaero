@@ -3,14 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import {
-  useFonts,
-  NotoSansKR_400Regular,
-  NotoSansKR_500Medium,
-  NotoSansKR_700Bold,
-} from '@expo-google-fonts/noto-sans-kr';
-import { NotoSerifKR_700Bold } from '@expo-google-fonts/noto-serif-kr';
 import { RootStackParamList } from './src/types';
+import { useAppFonts } from './src/hooks/useAppFonts';
 
 import SplashScreen from './src/screens/SplashScreen';
 import SavedListScreen from './src/screens/SavedListScreen';
@@ -29,12 +23,7 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 export default function App() {
   // 폰트 로딩 — 로딩 전엔 빈 화면(스플래시가 바로 이어지므로 깜빡임 없음)
-  const [fontsLoaded] = useFonts({
-    NotoSansKR_400Regular,
-    NotoSansKR_500Medium,
-    NotoSansKR_700Bold,
-    NotoSerifKR_700Bold,
-  });
+  const fontsLoaded = useAppFonts();
   if (!fontsLoaded) return null;
 
   return (

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import path from 'node:path';
 import express from 'express';
 import compression from 'compression';
 import cors from 'cors';
@@ -27,6 +28,10 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, provider: process.env.LLM_PROVIDER ?? 'claude' });
 });
 
+// 웹 버전 앱(expo export --platform web 결과물). 발표 때 QR로 바로 써볼 수 있게
+// 같은 서버에서 서빙한다. 갱신은 `npm run build:web` (앱 저장소 루트에서).
+app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h' }));
+
 // 명소 목록은 LLM을 쓰지 않고 앱이 토큰 없이 부르므로, 토큰 검사보다 먼저 등록한다.
 // (app.use('/api', ...)는 /api 아래 전체에 걸리므로 순서가 중요하다)
 app.get('/api/visitjeju/spots', async (_req, res) => {
@@ -37,6 +42,11 @@ app.get('/api/visitjeju/spots', async (_req, res) => {
 // LLM을 호출하는 라우트는 모두 토큰 검사를 거친다 (ai/planner 양쪽)
 app.use('/api', requirePlannerToken, aiRouter);
 app.use('/api', requirePlannerToken, plannerRouter);
+
+// 웹 앱은 클라이언트 라우팅을 쓰므로, API가 아닌 경로는 index.html로 돌려준다
+app.get(/^(?!\/api|\/health).*/, (_req, res, next) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'), err => err && next());
+});
 
 // 에러 핸들러 — 잘못된 JSON 등도 HTML 스택트레이스 대신 JSON으로 응답
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

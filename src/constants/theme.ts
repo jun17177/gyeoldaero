@@ -1,3 +1,5 @@
+import { SERIF_BOLD } from './serifFont';
+
 export const colors = {
   primary: '#3D5A73',
   primaryLight: '#EEF2F6',
@@ -17,7 +19,8 @@ export const fonts = {
   sans: 'NotoSansKR_400Regular',
   sansMedium: 'NotoSansKR_500Medium',
   sansBold: 'NotoSansKR_700Bold',
-  serifBold: 'NotoSerifKR_700Bold', // 타이틀·로고 전용
+  // 타이틀·로고 전용 (웹에서는 serifFont.web.ts의 시스템 폰트로 대체됨)
+  serifBold: SERIF_BOLD,
 };
 
 export const spacing = {
