@@ -25,6 +25,7 @@ import { seasonScore } from '../utils/seasonScore';
 import SpotCard from '../components/SpotCard';
 import { fetchJejuSpotsByCategory, fetchSpotImage } from '../api/tourApi';
 import StateView from '../components/StateView';
+import AiRecommendations from '../components/AiRecommendations';
 import {
   fetchDrivingRouteSummary,
   geocodeJejuAddress,
@@ -274,12 +275,13 @@ export default function SpotSelectScreen() {
 
   const keyExtractor = useCallback((item: Spot) => item.id, []);
 
-  const toggleSpot = (spot: Spot) =>
+  // 참조가 매번 바뀌면 memo로 감싼 하위 컴포넌트가 무의미해지므로 고정한다
+  const toggleSpot = useCallback((spot: Spot) =>
     setSelected(prev =>
       prev.find(s => s.id === spot.id)
         ? prev.filter(s => s.id !== spot.id)
         : [...prev, spot]
-    );
+    ), []);
 
   const handleAccommodationSelect = (id: TripSchedule['accommodation']) => {
     setAccommodation(id);
@@ -417,43 +419,18 @@ export default function SpotSelectScreen() {
   };
 
   // AI 추천 섹션 — 추천이 있거나 로딩 중일 때만 리스트 상단에 노출
-  const renderAiHeader = () => {
-    if (!aiLoading && aiRecs.length === 0) return null;
-    return (
-      <View style={styles.aiSection}>
-        <View style={styles.aiTitleRow}>
-          <Ionicons name="sparkles" size={14} color={colors.primary} />
-          <Text style={styles.aiTitle}>AI 맞춤 추천</Text>
-          {aiLoading && <ActivityIndicator size="small" color={colors.primary} />}
-        </View>
-        {!!aiSummary && <Text style={styles.aiSummary}>{aiSummary}</Text>}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {aiRecs.map(({ spot, reason }) => {
-            const isSelected = !!selected.find(s => s.id === spot.id);
-            return (
-              <TouchableOpacity
-                key={spot.id}
-                style={[styles.aiCard, isSelected && styles.aiCardSelected]}
-                onPress={() => toggleSpot(spot)}
-                activeOpacity={0.85}
-              >
-                <View style={styles.aiCardHeader}>
-                  <Text style={styles.aiCardName} numberOfLines={1}>{spot.name}</Text>
-                  {isSelected && (
-                    <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-                  )}
-                </View>
-                <Text style={styles.aiCardReason} numberOfLines={2}>{reason}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-    );
-  };
-
   // 카드마다 selected 배열을 훑지 않도록 id 집합으로 한 번만 만든다
   const selectedIds = useMemo(() => new Set(selected.map(s => s.id)), [selected]);
+
+  const aiHeader = (
+    <AiRecommendations
+      loading={aiLoading}
+      recs={aiRecs}
+      summary={aiSummary}
+      selectedIds={selectedIds}
+      onToggle={toggleSpot}
+    />
+  );
 
   const renderSpot = useCallback(({ item }: { item: Spot }) => (
     <SpotCard
@@ -548,7 +525,7 @@ export default function SpotSelectScreen() {
           updateCellsBatchingPeriod={50}
           windowSize={7}
           removeClippedSubviews
-          ListHeaderComponent={renderAiHeader}
+          ListHeaderComponent={aiHeader}
           ListEmptyComponent={
             <StateView
               variant="empty"
@@ -754,59 +731,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     color: colors.warning,
-  },
-  aiSection: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  aiTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  aiTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  aiSummary: {
-    fontSize: 12,
-    color: colors.text,
-    lineHeight: 17,
-    marginBottom: spacing.sm,
-  },
-  aiCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.sm,
-    marginRight: spacing.sm,
-    width: 170,
-  },
-  aiCardSelected: {
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-  },
-  aiCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  aiCardName: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  aiCardReason: {
-    fontSize: 11,
-    color: colors.textMuted,
-    lineHeight: 15,
   },
   daysSection: {
     alignItems: 'center',

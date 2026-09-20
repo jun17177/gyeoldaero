@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,35 +16,10 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, TripSettings } from '../types';
 import RangeSlider from '../components/RangeSlider';
 import { colors, spacing, radius } from '../constants/theme';
+import { DISPLAY_HOURS, Period, formatHourLabel, from24Hour, to24Hour } from '../utils/hourFormat';
 
 type Nav = StackNavigationProp<RootStackParamList, 'DetailCondition'>;
 type Route = RouteProp<RootStackParamList, 'DetailCondition'>;
-
-const ARRIVAL_TIMES = [
-  { label: '설정 안 함', value: undefined },
-  { label: '오전 9시',   value: 9  },
-  { label: '오전 10시',  value: 10 },
-  { label: '오전 11시',  value: 11 },
-  { label: '오후 12시',  value: 12 },
-  { label: '오후 1시',   value: 13 },
-  { label: '오후 2시',   value: 14 },
-  { label: '오후 3시',   value: 15 },
-  { label: '오후 4시',   value: 16 },
-  { label: '오후 5시',   value: 17 },
-];
-
-const DEPARTURE_TIMES = [
-  { label: '설정 안 함', value: undefined },
-  { label: '오전 9시',   value: 9  },
-  { label: '오전 10시',  value: 10 },
-  { label: '오전 11시',  value: 11 },
-  { label: '오후 12시',  value: 12 },
-  { label: '오후 1시',   value: 13 },
-  { label: '오후 2시',   value: 14 },
-  { label: '오후 3시',   value: 15 },
-  { label: '오후 4시',   value: 16 },
-  { label: '오후 5시',   value: 17 },
-];
 
 const LUGGAGE_OPTIONS: { id: TripSettings['luggage']; label: string; sub: string; dots: number }[] = [
   { id: 'light',      label: '가벼움', sub: '백팩',       dots: 1 },
@@ -80,39 +55,82 @@ function DotPattern({ count }: { count: number }) {
 
 function TimePickerModal({
   visible,
-  options,
+  title,
   selected,
   onSelect,
   onClose,
 }: {
   visible: boolean;
-  options: { label: string; value: number | undefined }[];
+  title: string;
   selected: number | undefined;
   onSelect: (v: number | undefined) => void;
   onClose: () => void;
 }) {
+  // 열 때마다 현재 값의 오전/오후로 맞춰 둔다 (값이 없으면 오전)
+  const [period, setPeriod] = useState<Period>(
+    selected === undefined ? 'am' : from24Hour(selected).period,
+  );
+  useEffect(() => {
+    if (visible) setPeriod(selected === undefined ? 'am' : from24Hour(selected).period);
+  }, [visible, selected]);
+
+  const pick = (display: number) => {
+    onSelect(to24Hour(period, display));
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.modalSheet}>
+        {/* 시트 안을 눌렀을 때 닫히지 않도록 터치를 여기서 멈춘다 */}
+        <TouchableOpacity style={styles.modalSheet} activeOpacity={1} onPress={() => {}}>
           <View style={styles.modalHandle} />
-          <FlatList
-            data={options}
-            keyExtractor={item => String(item.value)}
-            renderItem={({ item }) => (
+          <Text style={styles.modalTitle}>{title}</Text>
+
+          {/* 오전 / 오후 */}
+          <View style={styles.periodRow}>
+            {(['am', 'pm'] as Period[]).map(p => (
               <TouchableOpacity
-                style={[styles.modalItem, selected === item.value && styles.modalItemActive]}
-                onPress={() => { onSelect(item.value); onClose(); }}
+                key={p}
+                style={[styles.periodBtn, period === p && styles.periodBtnActive]}
+                onPress={() => setPeriod(p)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.modalItemText, selected === item.value && styles.modalItemTextActive]}>
-                  {item.label}
+                <Text style={[styles.periodText, period === p && styles.periodTextActive]}>
+                  {p === 'am' ? '오전' : '오후'}
                 </Text>
-                {selected === item.value && <Ionicons name="checkmark" size={16} color={colors.primary} />}
               </TouchableOpacity>
-            )}
-          />
-        </View>
+            ))}
+          </View>
+
+          {/* 1~12시 */}
+          <View style={styles.hourGrid}>
+            {DISPLAY_HOURS.map(h => {
+              const value = to24Hour(period, h);
+              const active = selected === value;
+              return (
+                <TouchableOpacity
+                  key={h}
+                  style={[styles.hourCell, active && styles.hourCellActive]}
+                  onPress={() => pick(h)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.hourText, active && styles.hourTextActive]}>{h}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.clearBtn, selected === undefined && styles.clearBtnActive]}
+            onPress={() => { onSelect(undefined); onClose(); }}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.clearText, selected === undefined && styles.clearTextActive]}>
+              설정 안 함
+            </Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -149,14 +167,7 @@ export default function DetailConditionScreen() {
     luggage,
   });
 
-  const formatTimeLabel = (v: number | undefined) =>
-    v === undefined
-      ? '설정 안 함'
-      : v < 12
-        ? `오전 ${v}시`
-        : v === 12
-          ? '오후 12시'
-          : `오후 ${v - 12}시`;
+  const formatTimeLabel = formatHourLabel;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -287,14 +298,14 @@ export default function DetailConditionScreen() {
 
       <TimePickerModal
         visible={arrivalModal}
-        options={ARRIVAL_TIMES}
+        title="첫날 도착 시간"
         selected={arrival}
         onSelect={setArrival}
         onClose={() => setArrivalModal(false)}
       />
       <TimePickerModal
         visible={departureModal}
-        options={DEPARTURE_TIMES}
+        title="마지막날 출발 시간"
         selected={departure}
         onSelect={setDeparture}
         onClose={() => setDepartureModal(false)}
@@ -419,7 +430,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: spacing.md,
-    maxHeight: '60%',
+    // 목록이 아니라 고정 높이 그리드라 스크롤이 필요 없다
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxl,
   },
   modalHandle: {
     width: 36, height: 4,
@@ -428,14 +441,59 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: spacing.md,
   },
-  modalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
   },
-  modalItemActive: { backgroundColor: colors.primaryLight },
-  modalItemText: { fontSize: 15, color: colors.text },
-  modalItemTextActive: { color: colors.primary, fontWeight: '700' },
+  // 오전 / 오후
+  periodRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    padding: 4,
+    marginBottom: spacing.lg,
+  },
+  periodBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+  },
+  periodBtnActive: { backgroundColor: colors.primary },
+  periodText: { fontSize: 15, fontWeight: '700', color: colors.textMuted },
+  periodTextActive: { color: '#fff' },
+  // 1~12시 (4열)
+  hourGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: spacing.lg,
+  },
+  hourCell: {
+    width: '22%',
+    flexGrow: 1,
+    paddingVertical: 14,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+  },
+  hourCellActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  hourText: { fontSize: 16, fontWeight: '600', color: colors.text },
+  hourTextActive: { color: '#fff' },
+  clearBtn: {
+    paddingVertical: 14,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  clearBtnActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  clearText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+  clearTextActive: { color: colors.primary },
 });
+
