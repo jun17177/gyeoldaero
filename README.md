@@ -285,6 +285,27 @@ EXPO_PUBLIC_SERVER_URL=http://192.168.0.12:3001
 cd server && npm run build:snapshot
 ```
 
+### 배포용 포크 (kimtaekyum/gyeoldaero)
+
+원본 저장소 `jun17177/gyeoldaero`는 개인 소유라 **주인이 아니면 Render 같은
+외부 앱을 연결할 수 없습니다**(협업자는 푸시만 가능). 그래서 배포는 포크에서 합니다.
+
+```bash
+git remote -v
+# origin  https://github.com/jun17177/gyeoldaero.git   ← 팀 공유용
+# fork    https://github.com/kimtaekyum/gyeoldaero.git ← Render 배포용
+```
+
+**서버 코드를 고쳐 배포에 반영하려면 두 곳 모두에 푸시해야 합니다.**
+
+```bash
+git push origin 태겸:태겸_네이버   # 팀에 공유
+git push fork   태겸:태겸_네이버   # Render가 이걸 보고 재배포
+```
+
+앱 코드만 고쳤다면 `origin`만으로 충분합니다. Render는 `fork`의
+`태겸_네이버` 브랜치가 바뀔 때 자동으로 다시 배포합니다.
+
 ### 배포하기 (Render 기준)
 
 LAN IP 의존을 없애려면 서버를 외부에 올리면 됩니다. `server/render.yaml`이
