@@ -31,6 +31,12 @@
     "plugins": [
       "expo-font",
       "expo-status-bar"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b0c1ab2c-d0a3-45a7-9cbd-a1eff80dcf66"
+      }
+    },
+    "owner": "kimtaekyum"
   }
 }
