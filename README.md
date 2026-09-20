@@ -291,7 +291,8 @@ LAN IP 의존을 없애려면 서버를 외부에 올리면 됩니다. `server/r
 준비돼 있어 저장소만 연결하면 됩니다.
 
 1. [Render](https://render.com) 가입 → **New → Blueprint** → 이 저장소 선택
-2. `server/render.yaml`을 읽어 `gyeoldaero-server` 서비스가 만들어집니다
+2. 브랜치를 `태겸_네이버`로 지정하면 루트의 `render.yaml`을 읽어
+   `gyeoldaero-server` 서비스가 만들어집니다
 3. 대시보드에서 아래 환경변수를 직접 입력합니다 (저장소에 키를 두지 않기 위해
    `sync: false`로 비워 둔 값들입니다)
 
