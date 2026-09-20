@@ -209,6 +209,47 @@ cd server && npx tsx --test tests/*.test.ts   # 백엔드
 
 ---
 
+## 발표용 APK 빌드
+
+Expo Go로 실행하면 폰이 맥의 번들러에 붙어야 해서 **같은 WiFi**가 필요합니다
+(백엔드를 배포해도 이건 그대로입니다 — 앱 코드를 맥에서 받아오기 때문).
+발표처럼 맥 없이 단독 실행해야 하면 APK로 빌드합니다.
+
+```bash
+npx eas-cli build --platform android --profile preview
+```
+
+빌드는 Expo 클라우드에서 돌고 10~20분 걸립니다. 끝나면 APK 다운로드 링크가
+나오고, 폰에서 그 링크를 열어 설치하면 됩니다(안드로이드에서 "출처를 알 수 없는 앱"
+설치를 허용해야 할 수 있습니다).
+
+설치한 APK는 **맥과 무관하게 동작**합니다. Render 서버만 살아 있으면 됩니다.
+
+### 환경변수 주의
+
+`.env`는 git에 올라가지 않아 클라우드 빌드가 볼 수 없습니다. 그래서 값을
+EAS에 따로 등록해 두었습니다.
+
+```bash
+npx eas-cli env:list preview          # 등록된 값 확인
+npx eas-cli env:create --scope project --name <이름> --value <값> \
+  --environment preview --environment production --visibility plaintext
+```
+
+**`.env`를 고쳤으면 EAS 값도 같이 고쳐야** 다음 빌드에 반영됩니다.
+특히 서버 주소나 `PLANNER_TOKEN`을 바꿨을 때 놓치기 쉽습니다.
+
+### APK에 담기는 값
+
+`EXPO_PUBLIC_*` 변수는 앱 번들에 그대로 박힙니다. APK를 받은 사람은
+네이버 지도 키와 `PLANNER_TOKEN`을 꺼내 볼 수 있습니다(클라이언트 앱의 구조상
+피할 수 없습니다). 배포 범위가 넓어지면:
+
+- 네이버 콘솔에서 지도 키에 **패키지명 제한**(`com.gyeoldaero.app`)을 걸어두세요
+- `PLANNER_TOKEN`은 길고 무작위한 값을 쓰세요
+
+---
+
 ## 백엔드 서버 (server/)
 
 AI 동선 설계·명소 추천·비짓제주 명소 목록을 담당합니다. Claude API 키를 앱 번들에
