@@ -71,8 +71,8 @@ export default function BusinessHoursScreen() {
   }, [schedule, navigation]);
 
   const renderItem = (item: TimelineItem, idx: number, isLast: boolean) => {
-    // 식당이 확정된 식사(옵션 1개)만 실제 장소로 취급 — 후보가 여러 개면 아직 미확정 상태
-    const chosenRestaurant = item.type === 'meal' && item.options?.length === 1 ? item.options[0] : null;
+    // 사용자가 고른 식당만 실제 장소로 취급 — 후보만 있고 선택 전이면 미확정 상태
+    const chosenRestaurant = item.type === 'meal' ? item.selectedOption ?? null : null;
     // '이동'·'숙소 출발/복귀' 등은 실제 장소가 아니라 검색 링크가 무의미하므로 표시하지 않음
     const showLink = item.type === 'spot' || !!chosenRestaurant;
     const url = item.linkUrl ?? SEARCH_URL(chosenRestaurant ?? item.name);

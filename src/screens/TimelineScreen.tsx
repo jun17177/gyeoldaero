@@ -64,7 +64,7 @@ export default function TimelineScreen() {
   const [dayPlans, setDayPlans] = useState<DayPlan[]>(schedule.dayPlans ?? []);
   const [loading, setLoading] = useState(!schedule.dayPlans?.length);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-  const [mealEditTarget, setMealEditTarget] = useState<{ day: number; itemIdx: number; options: string[] } | null>(null);
+  const [mealEditTarget, setMealEditTarget] = useState<{ day: number; itemIdx: number; options: string[]; selected?: string } | null>(null);
 
   useEffect(() => {
     if (schedule.dayPlans?.length) {
@@ -108,7 +108,12 @@ export default function TimelineScreen() {
     setDayPlans(prev => prev.map(dp =>
       dp.day !== day ? dp : {
         ...dp,
-        items: dp.items.map((it, i) => i === itemIdx ? { ...it, options: [chosen] } : it),
+        // 선택지를 전부 남겨둬야 나중에 다시 바꿀 수 있다 — 고른 곳만 맨 앞으로 옮긴다
+        items: dp.items.map((it, i) => i === itemIdx ? {
+          ...it,
+          options: [chosen, ...(it.options ?? []).filter(o => o !== chosen)],
+          selectedOption: chosen,
+        } : it),
       }
     ));
     setMealEditTarget(null);
@@ -136,7 +141,7 @@ export default function TimelineScreen() {
       if (item.type === 'spot' && matchedSpot) {
         setDeleteTarget({ id: matchedSpot.id, name: matchedSpot.name });
       } else if (item.type === 'meal' && item.options) {
-        setMealEditTarget({ day, itemIdx: idx, options: item.options });
+        setMealEditTarget({ day, itemIdx: idx, options: item.options, selected: item.selectedOption });
       }
     };
 
@@ -163,7 +168,11 @@ export default function TimelineScreen() {
               </Text>
               {item.type === 'meal' && item.options && (
                 <Text style={styles.itemMealOpts}>
-                  {item.options.join(' / ')}
+                  {item.options.map((opt, i) => (
+                    <Text key={opt} style={opt === item.selectedOption ? styles.itemMealOptChosen : undefined}>
+                      {i > 0 ? ' / ' : ''}{opt}
+                    </Text>
+                  ))}
                 </Text>
               )}
             </View>
@@ -320,16 +329,20 @@ export default function TimelineScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>식당 선택</Text>
-            {mealEditTarget?.options.map(opt => (
-              <TouchableOpacity
-                key={opt}
-                style={styles.optionRow}
-                onPress={() => handleSelectMealOption(opt)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.optionRowText}>{opt}</Text>
-              </TouchableOpacity>
-            ))}
+            {mealEditTarget?.options.map(opt => {
+              const isChosen = opt === mealEditTarget.selected;
+              return (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.optionRow, isChosen && styles.optionRowChosen]}
+                  onPress={() => handleSelectMealOption(opt)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.optionRowText, isChosen && styles.optionRowTextChosen]}>{opt}</Text>
+                  {isChosen && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
             <TouchableOpacity style={styles.modalCancel} onPress={() => setMealEditTarget(null)}>
               <Text style={styles.modalCancelText}>취소</Text>
             </TouchableOpacity>
@@ -416,7 +429,8 @@ const styles = StyleSheet.create({
   itemText: { flex: 1 },
   itemName: { fontSize: 14, fontWeight: '700', color: colors.text, lineHeight: 20 },
   itemMeta: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
-  itemMealOpts: { fontSize: 11, color: colors.warning, marginTop: 3 },
+  itemMealOpts: { fontSize: 11, color: colors.textMuted, marginTop: 3 },
+  itemMealOptChosen: { color: colors.warning, fontWeight: '700' },
   editBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: 12,
@@ -489,9 +503,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
   },
   optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  optionRowChosen: { backgroundColor: colors.primaryLight, paddingHorizontal: spacing.sm },
   optionRowText: { fontSize: 15, color: colors.text, fontWeight: '500' },
+  optionRowTextChosen: { color: colors.primary, fontWeight: '700' },
 });

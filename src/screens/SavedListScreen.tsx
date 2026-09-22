@@ -43,6 +43,20 @@ function formatDays(days: number) {
   return `${days - 1}박${days}일`;
 }
 
+function formatDateRange(startDate: string | undefined, days: number) {
+  if (!startDate) return '날짜 미정';
+
+  const year = Number(startDate.slice(0, 4));
+  const month = Number(startDate.slice(4, 6));
+  const day = Number(startDate.slice(6, 8));
+  const start = new Date(year, month - 1, day);
+  const end = new Date(start);
+  end.setDate(end.getDate() + Math.max(days - 1, 0));
+
+  const fmt = (d: Date) => `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, '0')}`;
+  return days <= 1 ? fmt(start) : `${fmt(start)}~${fmt(end)}`;
+}
+
 export default function SavedListScreen() {
   const navigation = useNavigation<Nav>();
   const [schedules, setSchedules] = useState<TripSchedule[]>([]);
@@ -57,9 +71,7 @@ export default function SavedListScreen() {
 
   const renderCard = ({ item, index }: { item: TripSchedule; index: number }) => {
     const thumbIcon = THUMB_ICONS[index % THUMB_ICONS.length];
-    const date = new Date(item.createdAt).toLocaleDateString('ko-KR', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-    }).replace(/\. /g, '.').replace(/\.$/, '');
+    const dateRange = formatDateRange(item.startDate, item.days);
 
     const tags = [
       ...item.settings.themes.map(t => THEME_LABEL[t] ?? t),
@@ -84,7 +96,7 @@ export default function SavedListScreen() {
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.cardMeta}>{date} 저장 · 명소 {item.spots.length}곳</Text>
+          <Text style={styles.cardMeta}>{dateRange} · 명소 {item.spots.length}곳</Text>
           <View style={styles.tagRow}>
             {tags.map(tag => (
               <View key={tag} style={styles.tagChip}>

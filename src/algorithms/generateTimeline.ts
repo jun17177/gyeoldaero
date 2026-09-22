@@ -96,6 +96,7 @@ export async function generateTimeline(schedule: TripSchedule, weatherFactor = 1
           duration: 60,
           dotColor: colors.warning,
           options: [spot.name],
+          selectedOption: spot.name,
         });
         cursor = Math.max(cursor, slotTime) + 60;
         if (slot === 'lunch') addedLunch = true; else addedDinner = true;

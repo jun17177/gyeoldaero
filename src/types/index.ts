@@ -49,6 +49,7 @@ export interface TimelineItem {
   duration: number;
   dotColor: string;
   options?: string[];
+  selectedOption?: string;
   linkUrl?: string;
 }
 

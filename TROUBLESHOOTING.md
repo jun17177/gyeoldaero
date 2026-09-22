@@ -2,6 +2,123 @@
 
 ---
 
+## [2026-09-21] 저장된 일정 카드 — "저장일시" 대신 "여행 날짜 범위" 표시
+
+### 배경
+S5(WeatherScreen)에서 일정을 저장할 때 사용자는 날씨를 보고 날짜를 선택해서 저장하거나(`handleSave(true)`), 날짜 선택 없이 저장할 수 있다(`handleSave(false)`). 후자의 경우 `TripSchedule.startDate`는 `undefined`로 저장된다.
+
+그런데 S0(SavedListScreen)의 카드는 정작 사용자가 고른 여행 날짜(`startDate`)가 아니라 **저장한 시각**(`createdAt`)을 "YYYY.MM.DD 저장"으로 보여주고 있었다. 여행 목록에서 필요한 정보는 "언제 저장했나"가 아니라 "언제 떠나는 여행인가"이므로 불일치.
+
+### 결정
+- 카드에는 `createdAt` 대신 `startDate` + `days`로 계산한 여행 기간(예: `10.03~10.05`)을 표시
+- `startDate`가 없는 경우(날짜 미선택 저장) "날짜 미정"으로 표시해 레이아웃 통일
+- 저장 일시 자체는 목록에 더 이상 노출하지 않음 (데이터로는 `createdAt` 유지, 정렬 등 내부 용도로만 사용 가능)
+
+### 변경 내용
+
+#### `src/screens/SavedListScreen.tsx`
+```tsx
+function formatDateRange(startDate: string | undefined, days: number) {
+  if (!startDate) return '날짜 미정';
+
+  const year = Number(startDate.slice(0, 4));
+  const month = Number(startDate.slice(4, 6));
+  const day = Number(startDate.slice(6, 8));
+  const start = new Date(year, month - 1, day);
+  const end = new Date(start);
+  end.setDate(end.getDate() + Math.max(days - 1, 0));
+
+  const fmt = (d: Date) => `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, '0')}`;
+  return days <= 1 ? fmt(start) : `${fmt(start)}~${fmt(end)}`;
+}
+```
+`renderCard`에서 `item.createdAt` 포맷 대신 `formatDateRange(item.startDate, item.days)`를 카드 메타 텍스트로 사용.
+
+---
+
+## [2026-09-15] 식당을 한 번 고르면 다시 바꿀 수 없던 문제 — "확정 = 후보 목록 삭제" 설계의 부작용
+
+### 요약
+타임라인(S5)에서 점심/저녁의 "수정" 버튼으로 식당을 한 번 고르면, 그 이후로는 **"수정" 버튼 자체가 사라져 다시 바꿀 수 없었다.** 선택을 확정할 때 후보 목록을 통째로 버리고 고른 식당 하나만 남기는 구조였기 때문.
+
+### 원인
+`handleSelectMealOption()`이 선택된 식당으로 `options` 배열을 덮어썼다.
+
+```tsx
+// 문제 코드 — 후보 5개가 선택 즉시 1개로 줄어듦
+items: dp.items.map((it, i) => i === itemIdx ? { ...it, options: [chosen] } : it),
+```
+
+그런데 "수정" 버튼의 노출 조건은 후보가 2개 이상일 때였다.
+
+```tsx
+const canEdit = item.type === 'spot' || (item.type === 'meal' && (item.options?.length ?? 0) > 1);
+```
+
+즉 **선택하는 행위가 그 자체로 버튼의 노출 조건을 깨뜨리는** 구조였다. 한 번 고르면 `options.length === 1`이 되어 `canEdit`이 `false`로 떨어지고, 버튼이 사라져 재선택 경로가 완전히 막혔다.
+
+근본 원인은 "어느 식당이 선택되었나"를 **별도 필드가 아니라 배열의 길이로 표현**한 것. 선택 상태와 후보 목록이라는 별개의 정보가 한 필드에 얹혀 있어 한쪽을 표현하면 다른 쪽이 파괴됐다.
+
+### 결정
+선택 상태를 `selectedOption` 필드로 분리하고, 후보 목록은 **항상 전부 보존**한다. 대신 고른 곳을 배열 맨 앞으로 옮기고 색을 달리해 눈에 띄게 한다.
+
+- 후보가 남아 있으므로 "수정" 버튼도 계속 노출 → 몇 번이든 재선택 가능
+- 사용자는 자신이 고른 곳과 나머지 후보를 한눈에 같이 볼 수 있음
+
+### 변경 내용
+
+#### `src/types/index.ts`
+`TimelineItem`에 선택 상태 필드 추가 — 후보 목록(`options`)과 분리.
+```ts
+options?: string[];
+selectedOption?: string;
+```
+
+#### `src/screens/TimelineScreen.tsx`
+```tsx
+// 선택지를 전부 남겨둬야 나중에 다시 바꿀 수 있다 — 고른 곳만 맨 앞으로 옮긴다
+items: dp.items.map((it, i) => i === itemIdx ? {
+  ...it,
+  options: [chosen, ...(it.options ?? []).filter(o => o !== chosen)],
+  selectedOption: chosen,
+} : it),
+```
+- 후보 목록 렌더링: 기존에는 `options.join(' / ')`로 전부 같은 색이었으나, 항목별 `<Text>`로 쪼개 **선택된 곳만 주황(`colors.warning`) + Bold**, 나머지는 `colors.textMuted` 회색으로 표시
+- 식당 선택 모달: 현재 선택된 항목에 배경 하이라이트(`primaryLight`) + 체크 아이콘 + primary 컬러 적용 — 다시 열었을 때 지금 무엇이 골라져 있는지 바로 보임
+
+#### `src/screens/BusinessHoursScreen.tsx`
+`options.length === 1`로 "확정 여부"를 판별하던 로직이 위 변경으로 깨지므로 함께 수정. (2026-09-10 항목에서 만든 조건)
+```tsx
+// 사용자가 고른 식당만 실제 장소로 취급 — 후보만 있고 선택 전이면 미확정 상태
+const chosenRestaurant = item.type === 'meal' ? item.selectedOption ?? null : null;
+```
+
+#### `src/algorithms/generateTimeline.ts`
+사용자가 직접 담은 미식 명소가 식사 슬롯이 되는 경우는 이미 확정된 식당이므로 `selectedOption`을 함께 넣어준다. (이게 없으면 위 `BusinessHoursScreen` 조건에서 미확정으로 취급되어 링크가 사라짐)
+```ts
+options: [spot.name],
+selectedOption: spot.name,
+```
+
+### 검증 (Expo web + Playwright로 전체 플로우 재현)
+S0 → 직접 설정 → 미식·힐링·가을 → 명소 4곳(산굼부리·섭지코지·천제연폭포·한림공원) → 제주시 숙소 → 일정 최적화까지 실제 API 호출로 진행 후:
+
+| 확인 항목 | 결과 |
+|---|---|
+| 1차 선택 — 3번째 후보 선택 | 목록이 `민박사봉평막국수 / 솜리식당 / 꾼짬뽕 / 운암정 / 우동카덴`으로 재정렬 (선택한 곳 맨 앞) |
+| 선택 항목 스타일 | `rgb(217, 119, 6)` = `colors.warning`, `font-weight: 700` (나머지는 회색) |
+| 선택 후 "수정" 버튼 | 그대로 유지 (기존 버그에서는 사라졌음) |
+| 2차 재선택 — 다시 열어 "운암정" 선택 | 정상 동작, `운암정`이 맨 앞으로 이동 |
+| 모달 재진입 시 현재 선택 표시 | 체크 아이콘 + 하이라이트 정상 |
+| "영업시간 확인" 화면 연동 | 확정 식당명 정상 표시 (회귀 없음) |
+
+`tsc --noEmit` 통과, 콘솔 에러 0건.
+
+### 교훈
+**상태를 자료구조의 부수적 성질(배열 길이)로 표현하면, 그 성질에 의존하는 다른 로직이 조용히 깨진다.** 이번엔 같은 조건(`options.length === 1`)을 `TimelineScreen`과 `BusinessHoursScreen` 두 곳이 서로 다른 의미로 읽고 있었다. 의미가 있는 상태는 이름 있는 필드로 명시하는 편이 안전하다.
+
+---
+
 ## [2026-09-11] 타임라인 헤더가 여행 기간을 하루 부풀려 표시 — 일수를 박수로 잘못 계산
 
 ### 요약
