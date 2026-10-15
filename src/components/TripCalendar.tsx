@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radius, fonts } from '../constants/theme';
+import { colors, spacing, radius } from '../constants/theme';
 import { buildMonthGrid, dayKey, isInTripRange, isSameDay, shiftMonth, addDays } from '../utils/calendar';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -135,7 +135,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
-  monthTitle: { fontFamily: fonts.serifBold, fontSize: 20, color: colors.text },
+  // 명조체(serifBold)는 이 화면의 다른 글자(고딕 계열)와 어울리지 않아 쓰지 않는다
+  monthTitle: { fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
   navBtn: {
     width: 36,
     height: 36,
