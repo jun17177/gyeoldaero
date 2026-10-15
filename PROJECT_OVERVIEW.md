@@ -38,7 +38,7 @@ iOS/Android는 Expo Go 또는 APK로, 웹은 `expo start --web`으로 확인할 
 | 네이버 지도 동선·지오코딩·길찾기 | 완료 — 실제 호출은 네이버 키 필요 |
 | 일정 저장·상세·공유 | 완료 |
 | 백엔드 Render 배포, APK 빌드 설정 | 완료 |
-| 테스트 | 앱 31 suites / 200 tests 통과 |
+| 테스트 | 앱 31 suites / 204 tests 통과 |
 
 남은 일은 `TODO.md`를 참고하세요. 대표적으로 토큰·지도 키를 갖고 하는 end-to-end 검증이 있습니다.
 

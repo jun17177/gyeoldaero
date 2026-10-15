@@ -1,4 +1,4 @@
-import { addSpotsToSchedule, countRainyDaySpots, isRainyDaySpot, recommendIndoorSpots } from '../indoorSuggest';
+import { addSpotsToSchedule, countRainyDaySpots, isRainyDaySpot, rainEvidence, recommendIndoorSpots } from '../indoorSuggest';
 import { Spot, TripSchedule } from '../../types';
 
 const spot = (over: Partial<Spot> & Pick<Spot, 'id' | 'name'>): Spot => ({
@@ -42,12 +42,12 @@ describe('isRainyDaySpot / countRainyDaySpots', () => {
 describe('recommendIndoorSpots', () => {
   const mine = schedule([spot({ id: 'o1', name: '성산일출봉' }), spot({ id: 'o2', name: '섭지코지' })]);
   const pool = [
-    spot({ id: 'm1', name: '가까운 박물관', category: 'culture', lat: 33.46, lon: 126.94 }),
-    spot({ id: 'm2', name: '조금 먼 전시관', category: 'culture', lat: 33.40, lon: 126.80 }),
-    spot({ id: 'far', name: '서쪽 끝 박물관', category: 'culture', lat: 33.30, lon: 126.20 }),
+    spot({ id: 'm1', name: '가까운 박물관', category: 'culture', tags: ['박물관'], lat: 33.46, lon: 126.94 }),
+    spot({ id: 'm2', name: '조금 먼 전시관', category: 'culture', tags: ['전시'], lat: 33.40, lon: 126.80 }),
+    spot({ id: 'far', name: '서쪽 끝 박물관', category: 'culture', tags: ['박물관'], lat: 33.30, lon: 126.20 }),
     spot({ id: 'out', name: '해변', category: 'nature', lat: 33.46, lon: 126.94 }),
     spot({ id: 'res', name: '식당', category: 'food', foodType: 'restaurant', lat: 33.46, lon: 126.94 }),
-    spot({ id: 'dup', name: '성산일출봉 전시관', category: 'culture', lat: 33.46, lon: 126.94 }),
+    spot({ id: 'dup', name: '성산일출봉 전시관', category: 'culture', tags: ['전시'], lat: 33.46, lon: 126.94 }),
   ];
 
   it('실내 명소만, 가까운 순으로 추천한다 (식당·야외·너무 먼 곳 제외)', () => {
@@ -64,16 +64,58 @@ describe('recommendIndoorSpots', () => {
   it('선택한 테마와 맞는 명소를 가까운 곳보다 앞에 둔다', () => {
     const themed = [
       spot({ id: 'near', name: '가까운 전시', category: 'night', tags: ['전시'], lat: 33.46, lon: 126.94 }),
-      spot({ id: 'themeFar', name: '조금 먼 박물관', category: 'culture', tags: ['박물관'], lat: 33.40, lon: 126.80 }),
+      spot({ id: 'themeFar', name: '조금 먼 박물관', category: 'culture', tags: ['전시'], lat: 33.40, lon: 126.80 }),
     ];
     const r = recommendIndoorSpots(schedule(mine.spots, ['culture']), themed);
     expect(r[0].id).toBe('themeFar');
   });
 
   it('개수 제한과 빈 일정 처리', () => {
-    const many = Array.from({ length: 10 }, (_, i) => spot({ id: `p${i}`, name: `박물관${i}번`, category: 'culture' }));
+    const many = Array.from({ length: 10 }, (_, i) => spot({ id: `p${i}`, name: `박물관${i}번`, category: 'culture', tags: ['박물관'] }));
     expect(recommendIndoorSpots(mine, many, 3)).toHaveLength(3);
     expect(recommendIndoorSpots(schedule([]), many)).toEqual([]);
+  });
+});
+
+describe('recommendIndoorSpots — 근거 기반 추천 (비짓제주 태그)', () => {
+  const mine = schedule([spot({ id: 'o1', name: '성산일출봉' })]);
+  const near = { lat: 33.46, lon: 126.94 };
+
+  it('비·눈 명시 > 실내 관광지·박물관 > 실내 태그 순으로 근거가 강한 곳을 앞에 둔다', () => {
+    const pool = [
+      spot({ id: 'weak', name: '실내 태그만', category: 'nature', tags: ['실내'], ...near }),
+      spot({ id: 'mid', name: '실내관광지', category: 'culture', tags: ['실내관광지'], ...near }),
+      spot({ id: 'strong', name: '비눈 명시', category: 'culture', tags: ['실내', '비.눈'], ...near }),
+    ];
+    expect(recommendIndoorSpots(mine, pool).map(s => s.id)).toEqual(['strong', 'mid', 'weak']);
+  });
+
+  it('근거가 없는 곳은 분류가 문화여도 추천하지 않는다 (유적지·태그 없는 곳)', () => {
+    const pool = [
+      spot({ id: 'a', name: '법화사지', category: 'culture', tags: ['문화유적지', '역사유적'], ...near }),
+      spot({ id: 'b', name: '영남동', category: 'culture', tags: ['4.3', '문화유적지'], ...near }),
+      spot({ id: 'c', name: '태그 없는 문화시설', category: 'culture', tags: [], ...near }),
+    ];
+    expect(recommendIndoorSpots(mine, pool)).toEqual([]);
+  });
+
+  it('숙소(템플스테이·호텔)와 절, 컨벤션센터는 "실내" 태그가 있어도 추천하지 않는다', () => {
+    const pool = [
+      spot({ id: 'a', name: '백제사 템플스테이', category: 'nature', tags: ['템플스테이', '실내', '문화관광'], ...near }),
+      spot({ id: 'b', name: '아라고나이트 고온천(디아넥스호텔)', category: 'nature', tags: ['온천', '실내', '호텔', '숙소'], ...near }),
+      spot({ id: 'c', name: '약천사', category: 'nature', tags: ['실내', '휴식/힐링'], ...near }),
+      spot({ id: 'd', name: '제주국제컨벤션센터', category: 'nature', tags: ['실내', '비.눈', '실내관광지'], ...near }),
+      spot({ id: 'ok', name: '제주교육박물관', category: 'culture', tags: ['실내', '비.눈', '박물관'], ...near }),
+    ];
+    expect(recommendIndoorSpots(mine, pool).map(s => s.id)).toEqual(['ok']);
+  });
+
+  it('rainEvidence 점수', () => {
+    expect(rainEvidence({ tags: ['비.눈'] })).toBe(3);
+    expect(rainEvidence({ tags: ['실내관광지'] })).toBe(2);
+    expect(rainEvidence({ tags: ['미술/박물관'] })).toBe(2);
+    expect(rainEvidence({ tags: ['실내'] })).toBe(1);
+    expect(rainEvidence({ tags: ['오름', '자연'] })).toBe(0);
   });
 });
 

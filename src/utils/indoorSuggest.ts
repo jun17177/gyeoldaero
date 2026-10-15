@@ -25,21 +25,54 @@ export function countRainyDaySpots(spots: (Pick<Spot, 'category' | 'tags' | 'foo
   return spots.filter(isRainyDaySpot).length;
 }
 
+// ── 추천 전용 기준 ──────────────────────────────────────────────
+// "일정에 실내 명소가 몇 곳인가"(위 isRainyDaySpot)는 사용자가 고른 곳을 느슨하게 세지만,
+// 사용자에게 "비 오는 날 여기 가세요"라고 권하는 곳은 근거가 분명해야 한다.
+// 비짓제주 태그에는 '비.눈'·'실내관광지' 같은 명시적 표시가 있어 이를 우선한다.
+// 분류가 문화여도 유적지·절은 야외이고, 숙소(템플스테이·호텔)는 명소가 아니라서 뺀다.
+const LODGING_HINTS = ['템플스테이', '숙소', '호텔', '펜션', '게스트하우스', '캠핑', '글램핑'];
+const HERITAGE_HINTS = ['유적', '사찰', '절'];
+const NON_ATTRACTION_HINTS = ['컨벤션']; // 실내이긴 해도 관광 명소가 아닌 시설
+
+function tagsOf(spot: { name?: string; tags: string[] }): string[] {
+  return [spot.name ?? '', ...spot.tags];
+}
+
+// 비 오는 날 가기 좋다는 근거의 강도: 3 = 비·눈 명시, 2 = 실내 관광지·박물관류, 1 = '실내' 태그·전시·카페 등, 0 = 근거 없음
+export function rainEvidence(spot: Pick<Spot, 'tags'> & { name?: string }): number {
+  const tags = spot.tags;
+  const has = (hints: string[]) => tags.some(t => hints.some(h => t.includes(h)));
+  if (has(['비.눈', '비눈', '우천'])) return 3;
+  if (has(['실내관광지', '실내가볼만한곳', '미술/박물관', '박물관', '미술관', '수족관', '과학관', '아쿠아'])) return 2;
+  if (has(['실내', '전시', '카페', '동굴', '시장', '전시관'])) return 1;
+  return 0;
+}
+
+function isRecommendable(spot: Pick<Spot, 'category' | 'tags' | 'foodType'> & { name?: string }): boolean {
+  if (!isRainyDaySpot(spot) || rainEvidence(spot) === 0) return false;
+  if (tagsOf(spot).some(t => [...LODGING_HINTS, ...NON_ATTRACTION_HINTS].some(h => t.includes(h)))) return false;
+  // 이름이 '○○사'로 끝나는 절, 유적지 태그는 야외로 본다
+  if (spot.tags.some(t => HERITAGE_HINTS.some(h => t.includes(h) && h !== '절'))) return false;
+  if (spot.name && /사$/.test(spot.name.replace(/\s+/g, ''))) return false;
+  return true;
+}
+
 const MAX_DISTANCE_KM = 60; // 제주 안에서 하루 동선으로 이어질 만한 거리
 
 // 일정에 없는 실내 명소 중 비·눈 오는 날 가기 좋은 곳을 추린다.
-// 일정 명소들의 중심에서 가까운 순으로, 사용자가 고른 테마와 맞으면 앞에 둔다.
+// 근거(비·눈 명시 > 실내 관광지·박물관 > 실내 태그)가 강한 순, 사용자가 고른 테마와 맞는 순, 일정 중심에서 가까운 순.
 export function recommendIndoorSpots(schedule: TripSchedule, pool: Spot[], limit = 4): Spot[] {
   if (schedule.spots.length === 0) return [];
   const lat = schedule.spots.reduce((s, p) => s + p.lat, 0) / schedule.spots.length;
   const lon = schedule.spots.reduce((s, p) => s + p.lon, 0) / schedule.spots.length;
 
   return pool
-    .filter(s => isRainyDaySpot(s))
+    .filter(s => isRecommendable(s))
     .filter(s => !schedule.spots.some(x => x.id === s.id || isSameSpotName(x.name, s.name)))
-    .map(s => ({ s, dist: haversineDistance(lat, lon, s.lat, s.lon), theme: themeScore(s, schedule.settings.themes) }))
+    .map(s => ({ s, dist: haversineDistance(lat, lon, s.lat, s.lon), theme: themeScore(s, schedule.settings.themes), evidence: rainEvidence(s) }))
     .filter(x => x.dist <= MAX_DISTANCE_KM)
-    .sort((a, b) => b.theme - a.theme || a.dist - b.dist)
+    // 근거가 강한 곳 → 선택한 테마와 맞는 곳 → 가까운 곳 순
+    .sort((a, b) => b.evidence - a.evidence || b.theme - a.theme || a.dist - b.dist)
     .slice(0, limit)
     .map(x => x.s);
 }

@@ -9,7 +9,7 @@
 - [x] 핵심 알고리즘 (haversine, nearestNeighbor, timeBudget, travelTime, generateTimeline, aiTimeline, planTrip)
 - [x] AsyncStorage 일정 저장/불러오기, 명소 사진 캐시
 - [x] Expo SDK 57 / React Native 0.86 / TypeScript 6 / React Navigation 7
-- [x] 테스트 31 suites / 200 tests (앱), 서버 테스트(보안·플래너·스냅샷·비짓제주)
+- [x] 테스트 31 suites / 204 tests (앱), 서버 테스트(보안·플래너·스냅샷·비짓제주)
 
 ### 데이터·API
 - [x] 명소: 비짓제주 API(서버 경유) + 엄선 시드 59곳 병합, 실사진 표시
