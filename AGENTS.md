@@ -135,7 +135,7 @@ Timeline → Weather (저장 직전 출발일 선택) → SavedList
 | Open-Meteo 날씨·일정 반영 | ✅ 완료 |
 | 네이버 지도·지오코딩·길찾기 | ✅ 완료 (실호출은 네이버 키 필요) |
 | 서버 Render 배포, APK 빌드 설정 | ✅ 완료 |
-| 테스트 | 앱 26 suites / 140 tests 통과 |
+| 테스트 | 앱 26 suites / 146 tests 통과 |
 
 남은 일은 `TODO.md`를 본다.
 

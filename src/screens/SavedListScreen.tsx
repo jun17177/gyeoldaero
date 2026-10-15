@@ -18,7 +18,7 @@ import WaveLogo from '../components/WaveLogo';
 import { RootStackParamList, TripSchedule } from '../types';
 import { loadAllSchedules, deleteSchedule, renameSchedule } from '../storage/scheduleStorage';
 import { colors, spacing, radius, shadows, fonts } from '../constants/theme';
-import { formatStartDate } from '../utils/date';
+import { formatTripRange } from '../utils/date';
 
 type Nav = StackNavigationProp<RootStackParamList, 'SavedList'>;
 
@@ -98,10 +98,7 @@ export default function SavedListScreen() {
 
   const renderCard = ({ item, index }: { item: TripSchedule; index: number }) => {
     const thumbIcon = THUMB_ICONS[index % THUMB_ICONS.length];
-    const date = new Date(item.createdAt).toLocaleDateString('ko-KR', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-    }).replace(/\. /g, '.').replace(/\.$/, '');
-    const departure = formatStartDate(item.startDate);
+    const range = formatTripRange(item.startDate, item.days);
 
     const tags = [
       ...item.settings.themes.map(t => THEME_LABEL[t] ?? t),
@@ -127,13 +124,24 @@ export default function SavedListScreen() {
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
-          {departure && (
-            <View style={styles.departRow}>
-              <Ionicons name="calendar" size={12} color={colors.primary} />
-              <Text style={styles.departText}>{departure} 출발</Text>
+          {/* 여행 기간: 언제부터 언제까지인지가 카드에서 가장 먼저 보이게 한다 */}
+          {range ? (
+            <View style={styles.rangeRow}>
+              <Ionicons name="calendar" size={13} color={colors.primary} />
+              <Text style={styles.rangeText}>{range.start}</Text>
+              {range.end && (
+                <>
+                  <Ionicons name="arrow-forward" size={12} color={colors.textMuted} />
+                  <Text style={styles.rangeText}>{range.end}</Text>
+                </>
+              )}
+            </View>
+          ) : (
+            <View style={styles.rangeRow}>
+              <Ionicons name="calendar-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.rangeUnset}>여행 날짜 미정</Text>
             </View>
           )}
-          <Text style={styles.cardMeta}>{date} 저장 · 명소 {item.spots.length}곳</Text>
           <View style={styles.tagRow}>
             {tags.map(tag => (
               <View key={tag} style={styles.tagChip}>
@@ -281,9 +289,9 @@ const styles = StyleSheet.create({
   dayBadgeText: { color: '#fff', fontSize: 8.5, fontWeight: '700' },
   cardBody: { flex: 1 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 3 },
-  departRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 },
-  departText: { fontSize: 11, fontWeight: '600', color: colors.primary },
-  cardMeta: { fontSize: 10, color: colors.textMuted, marginBottom: 6 },
+  rangeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 8 },
+  rangeText: { fontSize: 12, fontWeight: '700', color: colors.primary },
+  rangeUnset: { fontSize: 12, color: colors.textMuted },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   tagChip: {
     backgroundColor: colors.primaryLight,

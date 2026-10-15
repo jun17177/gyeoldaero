@@ -19,3 +19,22 @@ export function formatStartDate(s?: string): string | null {
   if (!dt) return null;
   return `${dt.getMonth() + 1}월 ${dt.getDate()}일 (${WEEKDAY_KR[dt.getDay()]})`;
 }
+
+// 여행 기간 표시용: 출발일 + 총 일수(days, 2 = 1박 2일) → 시작/끝 날짜 문구.
+// 당일치기(days <= 1)면 end는 null. 올해가 아닌 해에는 연도를 붙여 헷갈리지 않게 한다.
+// 출발일이 없거나 잘못되면 null (호출부에서 "날짜 미정"으로 표시).
+export function formatTripRange(
+  startDate: string | undefined,
+  days: number,
+  now: Date = new Date(),
+): { start: string; end: string | null } | null {
+  const start = parseYyyymmdd(startDate);
+  if (!start) return null;
+  const fmt = (d: Date) => {
+    const year = d.getFullYear() === now.getFullYear() ? '' : `${d.getFullYear()}년 `;
+    return `${year}${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAY_KR[d.getDay()]})`;
+  };
+  if (!Number.isFinite(days) || days <= 1) return { start: fmt(start), end: null };
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + days - 1);
+  return { start: fmt(start), end: fmt(end) };
+}

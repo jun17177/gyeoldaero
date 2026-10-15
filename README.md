@@ -173,7 +173,7 @@ gyeoldaero/
 | 명소 데이터 | 비짓제주 API(서버 경유) + 엄선 시드 59곳, TourAPI는 2차 폴백 |
 | AI | Claude (서버 경유) — 자동 설정·날짜별 동선 설계·명소 추천 |
 | 백엔드 | Node.js + Express (`server/`), Render 무료 플랜 배포 |
-| 테스트 | Jest (앱 26 suites / 140 tests), node:test (서버) |
+| 테스트 | Jest (앱 26 suites / 146 tests), node:test (서버) |
 
 ---
 
@@ -236,7 +236,7 @@ import { colors } from '../constants/theme';
 ## 테스트
 
 ```bash
-npm test                          # 전체 (26 suites / 140 tests)
+npm test                          # 전체 (26 suites / 146 tests)
 npx jest --selectProjects logic   # 알고리즘·유틸만 (빠름)
 npx jest --selectProjects ui      # 화면·컴포넌트 렌더
 npx tsc --noEmit                  # 타입 검사
