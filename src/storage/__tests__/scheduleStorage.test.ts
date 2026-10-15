@@ -15,6 +15,7 @@ import {
   loadAllSchedules,
   deleteSchedule,
   loadScheduleById,
+  renameSchedule,
 } from '../scheduleStorage';
 import { TripSchedule } from '../../types';
 
@@ -73,5 +74,31 @@ describe('scheduleStorage', () => {
   it('저장 데이터가 손상돼도 빈 배열로 안전 폴백', async () => {
     await AsyncStorage.setItem(KEY, '{망가진 JSON');
     expect(await loadAllSchedules()).toEqual([]);
+  });
+
+  describe('renameSchedule', () => {
+    it('이름만 제자리에서 바꾸고 다른 값·순서·개수는 그대로 둔다', async () => {
+      await saveSchedule(make('a', '원래 이름'));
+      await saveSchedule(make('b', '다른 일정'));
+      const before = await loadAllSchedules();
+
+      expect(await renameSchedule('a', '  새 이름  ')).toBe(true);
+
+      const after = await loadAllSchedules();
+      expect(after).toHaveLength(2);
+      expect(after.map(s => s.id)).toEqual(before.map(s => s.id));
+      expect(after.find(s => s.id === 'a')).toEqual({ ...before.find(s => s.id === 'a'), name: '새 이름' });
+      expect(after.find(s => s.id === 'b')?.name).toBe('다른 일정');
+    });
+
+    it('빈 이름이면 바꾸지 않는다', async () => {
+      await saveSchedule(make('a', '원래 이름'));
+      expect(await renameSchedule('a', '   ')).toBe(false);
+      expect((await loadScheduleById('a'))?.name).toBe('원래 이름');
+    });
+
+    it('없는 id면 false', async () => {
+      expect(await renameSchedule('nope', '이름')).toBe(false);
+    });
   });
 });

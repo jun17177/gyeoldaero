@@ -7,6 +7,8 @@ import {
   StyleSheet,
   StatusBar,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +16,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import WaveLogo from '../components/WaveLogo';
 import { RootStackParamList, TripSchedule } from '../types';
-import { loadAllSchedules, deleteSchedule } from '../storage/scheduleStorage';
+import { loadAllSchedules, deleteSchedule, renameSchedule } from '../storage/scheduleStorage';
 import { colors, spacing, radius, shadows, fonts } from '../constants/theme';
 import { formatStartDate } from '../utils/date';
 
@@ -54,6 +56,26 @@ export default function SavedListScreen() {
       loadAllSchedules().then(setSchedules);
     }, [])
   );
+
+  // 이름 수정 — 연필 아이콘을 누르면 이름 입력 창을 띄우고, 저장하면 그 일정의 이름만 제자리에서 바꾼다
+  const [renameTarget, setRenameTarget] = useState<TripSchedule | null>(null);
+  const [renameText, setRenameText] = useState('');
+
+  const openRename = (item: TripSchedule) => {
+    setRenameTarget(item);
+    setRenameText(item.name);
+  };
+
+  const submitRename = async () => {
+    if (!renameTarget) return;
+    const ok = await renameSchedule(renameTarget.id, renameText).catch(() => false);
+    if (!ok) {
+      Alert.alert('이름을 바꾸지 못했어요', '이름을 입력했는지 확인하고 다시 시도해주세요.');
+      return;
+    }
+    setRenameTarget(null);
+    setSchedules(await loadAllSchedules());
+  };
 
   // 카드 길게 누르면 삭제 (확인 후)
   const handleDelete = (item: TripSchedule) => {
@@ -120,6 +142,14 @@ export default function SavedListScreen() {
             ))}
           </View>
         </View>
+        <TouchableOpacity
+          style={styles.renameBtn}
+          onPress={() => openRename(item)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel={`${item.name} 이름 수정`}
+        >
+          <Ionicons name="create-outline" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
     );
@@ -132,7 +162,7 @@ export default function SavedListScreen() {
       {schedules.length > 0 ? (
         <>
           <Text style={styles.title}>저장된 일정</Text>
-          <Text style={styles.deleteHint}>카드를 길게 누르면 삭제할 수 있어요</Text>
+          <Text style={styles.deleteHint}>연필 아이콘으로 이름을 바꾸고, 카드를 길게 누르면 삭제할 수 있어요</Text>
           <FlatList
             data={schedules}
             keyExtractor={item => item.id}
@@ -152,6 +182,38 @@ export default function SavedListScreen() {
           </View>
         </View>
       )}
+
+      <Modal visible={renameTarget !== null} transparent animationType="fade" onRequestClose={() => setRenameTarget(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>일정 이름 수정</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={renameText}
+              onChangeText={setRenameText}
+              placeholder="예: 제주 봄 여행"
+              placeholderTextColor={colors.textMuted}
+              maxLength={30}
+              autoFocus
+              selectTextOnFocus
+              returnKeyType="done"
+              onSubmitEditing={submitRename}
+            />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setRenameTarget(null)}>
+                <Text style={styles.modalCancelText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSave, !renameText.trim() && styles.modalSaveDisabled]}
+                onPress={submitRename}
+                disabled={!renameText.trim()}
+              >
+                <Text style={styles.modalSaveText}>저장</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <View style={styles.bottomBar}>
         <TouchableOpacity
@@ -231,6 +293,46 @@ const styles = StyleSheet.create({
   },
   tagText: { fontSize: 10, color: colors.primary, fontWeight: '500' },
   arrow: { fontSize: 22, color: colors.border, marginLeft: spacing.sm },
+  renameBtn: { padding: 4, marginLeft: spacing.sm },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  modalBox: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xl },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: colors.text,
+    marginBottom: spacing.lg,
+  },
+  modalBtns: { flexDirection: 'row', gap: spacing.sm },
+  modalCancel: {
+    flex: 1,
+    height: 48,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelText: { color: colors.textMuted, fontWeight: '600' },
+  modalSave: {
+    flex: 1,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSaveDisabled: { opacity: 0.4 },
+  modalSaveText: { color: '#fff', fontWeight: '700' },
   emptyContainer: { flex: 1 },
   emptyCenter: {
     flex: 1,

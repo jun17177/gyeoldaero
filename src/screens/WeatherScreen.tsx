@@ -17,7 +17,7 @@ import { RootStackParamList, TripSchedule } from '../types';
 import { colors, spacing, radius, shadows } from '../constants/theme';
 import { fetchWeatherForecast, WeatherDay, SkyCondition } from '../api/weatherApi';
 import { planTrip } from '../algorithms/planTrip';
-import { saveSchedule, loadScheduleById } from '../storage/scheduleStorage';
+import { saveSchedule } from '../storage/scheduleStorage';
 import StateView from '../components/StateView';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Weather'>;
@@ -116,21 +116,10 @@ export default function WeatherScreen() {
       const schedule = withDate && selectedStart !== null && !forecastIsMock
         ? await replanForWeather(selectedStart)
         : baseSchedule;
-      // 저장된 일정을 다시 열어 "이름을 바꿔" 저장하면 원본을 덮지 않고 새 복제본으로 저장한다.
-      // (같은 이름으로 저장하면 기존 일정을 제자리 업데이트, 신규 일정은 그대로 최초 저장)
-      const existing = await loadScheduleById(schedule.id);
-      const isRenamedCopy = existing !== null && existing.name !== scheduleName;
+      // 저장된 일정을 편집해 다시 저장하면 같은 id로 제자리 업데이트된다 (이름은 Timeline에서 이미 정해져 넘어옴).
+      // 이름 변경은 저장 목록의 이름 수정 기능으로 분리했으므로 여기서 복제본을 만들지 않는다.
       // dayPlans·aiComment 등은 ...schedule 스프레드로 그대로 보존, startDate만 덧붙인다
-      const toSave = isRenamedCopy
-        ? {
-            ...schedule,
-            id: Date.now().toString(),
-            createdAt: new Date().toISOString(),
-            name: scheduleName,
-            startDate,
-          }
-        : { ...schedule, name: scheduleName, startDate };
-      await saveSchedule(toSave);
+      await saveSchedule({ ...schedule, name: scheduleName, startDate });
       navigation.navigate('SavedList');
     } catch (e) {
       console.error('[Weather] 일정 저장 실패:', e);

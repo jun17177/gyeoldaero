@@ -19,6 +19,7 @@ import { generateTimeline } from '../algorithms/generateTimeline';
 import { fetchTripComment } from '../api/aiApi';
 import { enrichMealOptions } from '../api/mealRecommend';
 import { colors, spacing, radius, fonts } from '../constants/theme';
+import { loadScheduleById } from '../storage/scheduleStorage';
 import { ACCOMMODATION_LABEL } from '../constants/accommodations';
 import { formatStartDate } from '../utils/date';
 import { environmentLabel } from '../utils/spotEnvironment';
@@ -156,6 +157,19 @@ export default function TimelineScreen() {
         onPress: () => applySpotsChange(schedule.spots.filter(s => s.id !== target.id)),
       },
     ]);
+  };
+
+  // 이미 저장된 일정을 편집한 경우엔 이름을 다시 묻지 않고 기존 이름 그대로 제자리 저장한다.
+  // (이름 변경은 저장 목록의 이름 수정 기능으로 분리). 새 일정만 이름 입력 창을 띄운다.
+  const handleSavePress = async () => {
+    let alreadySaved = false;
+    try {
+      alreadySaved = (await loadScheduleById(schedule.id)) !== null;
+    } catch (e) {
+      console.warn('[Timeline] 저장 여부 확인 실패, 이름 입력으로 진행:', e);
+    }
+    if (alreadySaved) handleSave();
+    else setSaveModal(true);
   };
 
   const handleSave = async () => {
@@ -359,7 +373,7 @@ export default function TimelineScreen() {
       <View style={styles.bottomBar}>
         <TouchableOpacity
           style={styles.saveBtn}
-          onPress={() => setSaveModal(true)}
+          onPress={handleSavePress}
           activeOpacity={0.85}
         >
           <Text style={styles.saveBtnText}>일정 저장</Text>
