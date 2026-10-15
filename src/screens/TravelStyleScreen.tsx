@@ -65,7 +65,7 @@ export default function TravelStyleScreen() {
       mode,
       settings: {
         themes: themes.length > 0 ? themes : ['healing'],
-        weather: 'sunny', // 실제 날씨는 SpotSelect에서 기상청 API로 대체된다
+        weather: 'sunny', // 자리 채움용 — 실제 날씨는 SpotSelect에서 Open-Meteo로 조회해 덮어쓴다
         season,
       },
     });

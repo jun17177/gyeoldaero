@@ -2,17 +2,10 @@ import { TripSchedule, DayPlan, TimelineItem } from '../types';
 import { nearestNeighbor } from './nearestNeighbor';
 import { calcTripDays } from './timeBudget';
 import { colors } from '../constants/theme';
+import { ACCOMMODATION_COORDS } from '../constants/accommodations';
 
-export const ACCOMMODATION_COORDS: Record<string, { lat: number; lon: number }> = {
-  airport:   { lat: 33.5074, lon: 126.4927 },
-  jejucity:  { lat: 33.4996, lon: 126.5312 },
-  aewol:     { lat: 33.4600, lon: 126.3100 },
-  hallim:    { lat: 33.3925, lon: 126.2376 },
-  jungmun:   { lat: 33.2453, lon: 126.4126 },
-  seogwipo:  { lat: 33.2541, lon: 126.5600 },
-  seongsan:  { lat: 33.4390, lon: 126.9229 },
-  custom:    { lat: 33.4996, lon: 126.5312 },
-};
+// 숙소 좌표는 constants/accommodations.ts가 단일 출처 (기존 import 경로 유지를 위해 다시 내보낸다)
+export { ACCOMMODATION_COORDS } from '../constants/accommodations';
 
 const MEAL_OPTIONS: Record<'lunch' | 'dinner', string[]> = {
   lunch: ['흑돼지 두루치기', '갈치조림 정식', '한치물회'],

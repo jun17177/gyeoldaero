@@ -19,6 +19,7 @@ import { generateTimeline } from '../algorithms/generateTimeline';
 import { fetchTripComment } from '../api/aiApi';
 import { enrichMealOptions } from '../api/mealRecommend';
 import { colors, spacing, radius, fonts } from '../constants/theme';
+import { ACCOMMODATION_LABEL } from '../constants/accommodations';
 import { formatStartDate } from '../utils/date';
 import { environmentLabel } from '../utils/spotEnvironment';
 import { findSpotOf } from '../utils/findSpot';
@@ -46,10 +47,6 @@ const THEME_LABEL: Record<string, string> = {
   culture: '문화탐방', photo: '사진·감성', night: '야경·야간',
 };
 
-const ACCOM_LABEL: Record<string, string> = {
-  jejucity: '제주시', aewol: '애월', hallim: '한림',
-  jungmun: '중문', seogwipo: '서귀포', seongsan: '성산', custom: '직접입력',
-};
 
 function ItemIcon({ type, spotCategory }: { type: TimelineItem['type']; spotCategory?: string }) {
   const iconName: IoniconsName =
@@ -312,7 +309,7 @@ export default function TimelineScreen() {
             <Text style={styles.tagText}>{schedule.planSource === 'ai' ? 'AI 추천 동선' : '기본 동선'}</Text>
           </View>}
           <View style={styles.tag}>
-            <Text style={styles.tagText}>{ACCOM_LABEL[schedule.accommodation]}</Text>
+            <Text style={styles.tagText}>{ACCOMMODATION_LABEL[schedule.accommodation]}</Text>
           </View>
         </ScrollView>
 
