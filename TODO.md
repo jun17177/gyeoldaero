@@ -1,52 +1,65 @@
 # 결대로 — 할 일 체크리스트
 
+> 마지막 갱신: 2026-10-15 (네이버 버전을 `main`으로 확정한 시점 기준)
+
 ## ✅ 완료
 
-- [x] 전체 화면 8개 구현 (Splash, SavedList, Home, TravelStyle, DetailCondition, SpotSelect, Timeline, BusinessHours)
-- [x] 핵심 알고리즘 4개 (haversine, nearestNeighbor, timeBudget, generateTimeline)
-- [x] 제주 명소 시드 데이터 28개
-- [x] AsyncStorage 저장/불러오기
-- [x] WaveLogo SVG 컴포넌트
-- [x] RangeSlider 컴포넌트
-- [x] GitHub 연동 및 팀원 공유 가이드 (README.md, AGENTS.md)
-- [x] 한국관광공사 TourAPI 연동 (KorService2, 명소 실사진 표시, 시드 데이터 fallback)
-- [x] TravelStyleScreen 날씨 선택 항목 제거 (날씨 선택 → WeatherScreen으로 이전 예정)
-- [x] 네이버 지도 Geocoding/Reverse Geocoding API 키 등록 및 공통 API 모듈 추가
-- [x] SpotSelectScreen 직접입력 숙소 주소 지오코딩 연결
-- [x] 바로가기 링크 카카오 지도 → 네이버 지도 검색으로 변경
+### 기본 구조
+- [x] 화면 12개 구현·연결 (Splash, SavedList, SavedDetail, Home, AutoSetup, TravelStyle, DetailCondition, SpotSelect, Timeline, RouteMap, Weather, BusinessHours)
+- [x] 핵심 알고리즘 (haversine, nearestNeighbor, timeBudget, travelTime, generateTimeline, aiTimeline, planTrip)
+- [x] AsyncStorage 일정 저장/불러오기, 명소 사진 캐시
+- [x] Expo SDK 57 / React Native 0.86 / TypeScript 6 / React Navigation 7
+- [x] 테스트 26 suites / 137 tests (앱), 서버 테스트(보안·플래너·스냅샷·비짓제주)
+
+### 데이터·API
+- [x] 명소: 비짓제주 API(서버 경유) + 엄선 시드 59곳 병합, 실사진 표시
+- [x] 서버 스냅샷으로 콜드 스타트 제거 (`server/data/spots-snapshot.json.gz`)
+- [x] 날씨: 기상청 → **Open-Meteo로 교체** (키 불필요, 10일 예보)
+- [x] 지도·검색: 카카오 → **네이버 지도** (지오코딩·길찾기·실도로 경로, 숙소 주소 검색)
+- [x] 한국관광공사 TourAPI는 2차 폴백으로 유지 (서버 주소가 설정돼 있으면 쓰지 않음)
+- [x] 키 관리: `.env` 일원화 (`EXPO_PUBLIC_*`), `API_설정_가이드.md`는 저장소 밖 + `.gitignore` 방어
+
+### AI·기능
+- [x] 자동 설정: 자연어 → 여행 조건 변환 (AutoSetupScreen)
+- [x] AI 동선 설계: 날짜별 명소 배정 + 서버 검증·재시도, 실패 시 알고리즘 폴백
+- [x] AI 명소 추천·일정 코멘트
+- [x] 고른 출발일 구간에 비·눈이 있으면 저장 시 일정을 다시 설계해 그날 실내 명소 위주로 재배정 (예보 조회 실패 시에는 건너뜀)
+- [x] 도착·출발 시각 24시간 선택
+- [x] 일정 저장 전 날씨·출발일 선택 (WeatherScreen), 저장 상세·텍스트 공유
+- [x] 타임라인 명소 편집(↑↓✕), 맛집 선택, 지도 동선
+
+### 배포
+- [x] 백엔드 Render 배포 (`render.yaml`, `PLANNER_TOKEN` 인증, CORS 출처 제한)
+- [x] EAS 빌드 설정 — 발표용 Android APK (`eas.json` preview 프로필)
+- [x] 웹 빌드 대비 (`npm run build:web`, 키 노출 방지를 위해 결과물 커밋 금지)
+- [x] 공모전 1차 심사 제출 (2026-09-21 마감)
+- [x] 브랜치 정리: 네이버 버전을 `main`으로 확정, 이전 카카오 `main`은 `현준`·`main-kakao-archive`에 보존
 
 ---
 
 ## 🔧 진행 예정
 
-### 날씨 기능 개편
-- [ ] TravelStyleScreen에서 날씨 선택 항목 제거
-- [ ] 기상청 단기예보 API 키 발급 (data.go.kr)
-- [ ] WeatherScreen 새로 구현 (Timeline 다음 화면)
-  - [ ] 앞으로 10일 날씨 달력 표시
-  - [ ] 여행 일수에 맞는 날짜 구간 선택 기능
-  - [ ] 선택한 날짜를 일정에 저장
-- [ ] RootStackParamList 및 App.tsx에 WeatherScreen 등록
+### 검증 (최대 병목)
+- [ ] `PLANNER_TOKEN`·네이버 지도 키 확보 → AI 동선·실도로 경로 end-to-end 검증
+- [ ] 실제 기기에서 직접입력 숙소 + 길찾기 응답 확인
+- [ ] `Maximum update depth exceeded` 네이티브 재현 여부 확인 (웹 전용 현상으로 추정, 명소 2,946개 리스트)
 
-### 네이버 지도 API 고도화
-- [x] Directions 5 호출 함수 추가
-- [x] 일정 최적화 시 명소 간 실제 자동차 이동 시간 조회 연결
-- [x] Directions API 실패 시 20분 기본 이동 시간 fallback 적용
-- [x] 네이버 콘솔에서 Geocoding/Reverse Geocoding/Directions 5 API 사용 신청 상태 확인
-- [x] VPC Maps API 도메인 적용 및 API 스모크 테스트 200 응답 확인
-- [ ] 실제 기기/시뮬레이터에서 직접입력 숙소와 Directions 응답 확인
-- [ ] 타임라인 식사 슬롯에 주변 맛집 실제 데이터 연동
-
-### 기상청 API 연동
-- [ ] src/api/weatherApi.ts 구현
-- [ ] 제주도 격자 좌표 적용 (nx=52, ny=38)
-- [ ] 날씨 아이콘 컴포넌트 제작 (맑음/흐림/비/눈)
+### 정리
+- [ ] 로컬·원격 브랜치 정리 (`main-naver`, `태겸_네이버`, `fix/trip-days-label-and-docs`, `backup/local-main-f4d95fa` 등)
+- [x] axios 1.15.2 → 1.20.0, 서버 의존성 취약점 0건, 서버 토큰 비교를 timing-safe로 변경 (2026-10-15)
+- [ ] 앱 `npm audit`에 남은 HIGH(Expo CLI·Metro·Jest 등 개발 도구 전이 의존성)는 Expo/React Native 업그레이드 때 함께 처리 — `npm audit fix --force`는 expo를 옛 버전(44)으로 내리라고 하므로 쓰지 않는다
+- [ ] Render에 `PLANNER_TOKEN`·`ALLOWED_ORIGINS`가 실제로 설정돼 있는지 대시보드에서 확인 (비어 있으면 서버가 시작 시 경고를 로그에 남김)
+- [x] 숙소 좌표·라벨·선택지를 `src/constants/accommodations.ts` 한 곳으로 통합 (회귀 테스트 추가)
+- [x] 이전 카카오 `main`의 수정 3건 점검 (2026-10-15): 숙소별 동선(좌표 키 누락)·여행 기간 표기(`N-1박 N일`)·식당 재선택(`selectedOption`)은 네이버 버전에 이미 반영돼 있음. 저장 목록은 날짜 범위 대신 "저장일 · 출발일 뱃지" 방식(디자인 차이라 그대로 둠)
+- [ ] 명소 상세 화면(영업시간·전화번호)이 네이버 버전에 없음 — 대체 기능 여부 확인
+- [ ] Render 대시보드에서 감시 브랜치 확인 (포크 `kimtaekyum/gyeoldaero`의 `태겸_네이버`는 `fabe96e`로 서버 코드가 `main`과 같고 `/health` 정상 응답은 확인함, 대시보드 설정 자체는 미확인)
 
 ---
 
 ## 💡 추후 고려
 
-- [ ] 날짜 선택 기반 실제 날씨 예보 자동 반영
-- [ ] 명소 상세 페이지 (영업시간, 전화번호, 리뷰)
-- [ ] 일정 수정 기능 (TimelineScreen 수정 버튼 실제 동작)
+- [ ] 서버 경유 기상청 예보 병행 (Open-Meteo 실패 시 폴백, 한국 국지 정확도) — 앱에 키를 넣지 않고 서버에서만 호출
+- [ ] 일정 이미지 공유 (view-shot)
+- [ ] 컴포넌트·통합 테스트 확대 (화면 렌더 테스트는 BusinessHours 위주)
 - [ ] 푸시 알림 (여행 전날 일정 알림)
+- [ ] 스토어 등록 (공모전 이후 졸업 프로젝트 목표 기준으로 재검토)

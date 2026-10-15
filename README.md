@@ -9,9 +9,9 @@
 
 | 이름 | 역할 |
 |------|------|
-| 주해든 | - |
-| 김태겸 | - |
-| 조현준 | - |
+| 주해든 | 백엔드 · 동선 알고리즘 (Haversine, TSP, Time Budget) |
+| 김태겸 | 프론트엔드 |
+| 조현준 | 기획 · UX 설계 · 디자인 시스템 · 외부 API 연동 |
 
 ---
 
@@ -21,24 +21,22 @@
 
 | 도구 | 확인 | 설치 |
 | --- | --- | --- |
-| Node.js (v18 이상) | `node -v` | https://nodejs.org |
+| Node.js (v20 권장, v18 이상) | `node -v` | https://nodejs.org |
 | Git | `git --version` | https://git-scm.com |
 | Expo Go (폰) | 앱스토어 검색 | iOS / Android |
 
 ### 2. 받아서 실행
 
 ```bash
-git clone -b 태겸_네이버 https://github.com/jun17177/gyeoldaero.git
+git clone https://github.com/jun17177/gyeoldaero.git
 cd gyeoldaero
 npm install
 cp .env.example .env     # ← 빼먹기 쉬운 단계
 npx expo start
 ```
 
-터미널의 QR을 **Expo Go**로 찍으면 실행됩니다.
-
-**브랜치(`-b 태겸_네이버`)를 꼭 지정하세요.** 기본 브랜치인 `main`에는
-백엔드와 최근 작업이 들어 있지 않습니다.
+터미널의 QR을 **Expo Go**로 찍으면 실행됩니다. 기본 브랜치는 `main`이고, 이전 카카오
+기반 버전은 `main-kakao-archive`, 2026-10-15 이전의 `main`은 `현준` 브랜치에 보존돼 있습니다.
 
 ### `.env`가 왜 따로 필요한가
 
@@ -54,9 +52,11 @@ npx expo start
 | --- | --- | --- |
 | `EXPO_PUBLIC_PLANNER_API_TOKEN` | AI 기능만 막힘 (401) | 팀 내부 공유 |
 | `EXPO_PUBLIC_NAVER_MAP_API_KEY_ID`<br/>`EXPO_PUBLIC_NAVER_MAP_API_KEY` | 지도가 직선 표시, 숙소 주소검색 불가 | 네이버 클라우드 플랫폼 |
+| `EXPO_PUBLIC_TOUR_API_KEY` | 서버 주소가 설정돼 있으면 영향 없음 (서버 없이 키만 있을 때만 TourAPI로 명소 조회) | data.go.kr |
 
 토큰은 저장소에 올릴 수 없으니 카톡 등으로 받으세요. 서버의 `PLANNER_TOKEN`과
-**글자 하나까지 같아야** 합니다.
+**글자 하나까지 같아야** 합니다. 키 설정 상세와 취급 규칙은 저장소 밖 `API_설정_가이드.md`를
+참고하세요(키가 담긴 문서라 저장소 안으로 옮기지 않습니다).
 
 ### 무엇이 없어도 도는가
 
@@ -88,38 +88,47 @@ AI가 막혀도 최근접 이웃 알고리즘이 일정을 만들어 주므로 �
 gyeoldaero/
 ├── App.tsx                  # 앱 진입점, 네비게이션 설정
 ├── src/
-│   ├── screens/             # 화면 컴포넌트 (8개)
+│   ├── screens/             # 화면 컴포넌트 (12개)
 │   │   ├── SplashScreen.tsx         # S1  로딩 스플래시
 │   │   ├── SavedListScreen.tsx      # S0  저장된 일정 목록
-│   │   ├── HomeScreen.tsx           # S2  홈 (직접/자동 선택)
-│   │   ├── TravelStyleScreen.tsx    # S3a 여행 스타일 선택
+│   │   ├── SavedDetailScreen.tsx    # S6  저장 일정 상세·공유·삭제
+│   │   ├── HomeScreen.tsx           # S2  홈 (직접 설정 / 자동 설정)
+│   │   ├── AutoSetupScreen.tsx      # S2a 자동 설정 (자연어 → 여행 조건, AI)
+│   │   ├── TravelStyleScreen.tsx    # S3a 테마·계절 선택
 │   │   ├── DetailConditionScreen.tsx# S3b 세부 조건 설정
-│   │   ├── SpotSelectScreen.tsx     # S4  명소 선택
-│   │   ├── TimelineScreen.tsx       # S5  결과 타임라인
-│   │   └── BusinessHoursScreen.tsx  # S5-1 영업시간 바로가기
+│   │   ├── SpotSelectScreen.tsx     # S4  명소 선택·숙소·AI 추천
+│   │   ├── TimelineScreen.tsx       # S5  결과 타임라인·명소 편집·맛집 선택
+│   │   ├── WeatherScreen.tsx        # S5_2 10일 예보·출발일 선택 → 저장
+│   │   ├── RouteMapScreen.tsx       # S5_3 네이버 지도 동선
+│   │   └── BusinessHoursScreen.tsx  # S5_1 영업시간 바로가기
 │   │
 │   ├── components/          # 재사용 컴포넌트
 │   │   ├── WaveLogo.tsx             # 결대로 로고 (SVG)
-│   │   └── RangeSlider.tsx          # 시간대 슬라이더
+│   │   ├── RangeSlider.tsx          # 시간대 슬라이더
+│   │   ├── SpotCard.tsx             # 명소 카드
+│   │   ├── AiRecommendations.tsx    # AI 명소 추천 영역
+│   │   ├── RouteMapWebView(.web).tsx# 네이버 지도 (네이티브 WebView / 웹은 방문 순서+지도 링크 대체 화면)
+│   │   └── StateView.tsx            # 로딩·에러·빈 상태 공통 뷰
 │   │
 │   ├── algorithms/          # 핵심 알고리즘
 │   │   ├── haversine.ts             # GPS 거리 계산
-│   │   ├── nearestNeighbor.ts       # 최적 경로 (TSP)
+│   │   ├── nearestNeighbor.ts       # 최적 경로 (TSP 근사)
 │   │   ├── timeBudget.ts            # 여행 일수 자동 산출
-│   │   └── generateTimeline.ts      # 타임라인 자동 생성
+│   │   ├── travelTime.ts            # 이동 시간 추정
+│   │   ├── generateTimeline.ts      # 타임라인 자동 생성
+│   │   ├── aiTimeline.ts            # AI 날짜별 배정을 타임라인으로 변환
+│   │   └── planTrip.ts              # AI 설계 → 실패 시 알고리즘 폴백
 │   │
-│   ├── data/
-│   │   └── jejuSpots.ts             # 제주 명소 시드 데이터 (28개)
-│   │
-│   ├── storage/
-│   │   └── scheduleStorage.ts       # AsyncStorage 저장/불러오기
-│   │
-│   ├── types/
-│   │   └── index.ts                 # TypeScript 타입 정의
-│   │
-│   └── constants/
-│       └── theme.ts                 # 컬러, 간격, 그림자 등 디자인 상수
+│   ├── api/                 # 외부 연동 (서버·네이버·Open-Meteo·TourAPI)
+│   ├── data/jejuSpots.ts    # 엄선 시드 명소 59곳
+│   ├── storage/             # AsyncStorage 일정 저장, 사진 캐시
+│   ├── utils/               # 날짜, 명소 병합, 계절 점수, 공유 텍스트 등
+│   ├── types/index.ts       # TypeScript 타입 정의
+│   └── constants/           # 테마(theme.ts), 테마 프로필, 설정, 키 주입
 │
+├── server/                  # 백엔드 (Express + Claude 프록시 + 비짓제주 수집)
+├── render.yaml              # Render 배포 설정
+├── eas.json                 # EAS 빌드 프로필 (APK 등)
 └── app_des/                 # 디자인 시안 PNG 파일들
 ```
 
@@ -128,25 +137,25 @@ gyeoldaero/
 ## 화면 흐름
 
 ```
-[S1 스플래시] → [S0 저장목록]
-                    │
+[S1 스플래시] → [S0 저장목록] ─ 카드 탭 → [S6 저장 상세] ─ 지도 → [S5_3 지도]
+                    │                          └─ 편집 → [S5 타임라인]
                     └─ 새로운 여행 시작하기
                             │
                         [S2 홈]
+                  ┌─────────┴──────────┐
+              직접 설정             자동 설정 (AI)
+                  │             [S2a 자연어 입력 → 조건 변환]
+          [S3a 여행 스타일]              │ (확인 후 바로 S4로 가거나 S3b에서 수정)
+                  │                     │
+          [S3b 세부 조건] ─────────────┤
+                  └─────────┬──────────┘
+                      [S4 명소 선택]
                             │
-                    직접 설정 / 자동 설정
+                      [S5 타임라인] ─ 영업시간 → [S5_1]
+                            │         └─ 지도   → [S5_3]
+                       일정 저장
                             │
-                    [S3a 여행 스타일]
-                            │
-                    [S3b 세부 조건]
-                            │
-                    [S4 명소 선택]
-                            │
-                    [S5 타임라인]
-                        │       │
-                   일정저장   영업시간확인
-                        │       │
-                   [S0 목록] [S5-1 바로가기]
+                  [S5_2 날씨·출발일 선택] → [S0 목록]
 ```
 
 ---
@@ -155,38 +164,38 @@ gyeoldaero/
 
 | 분류 | 기술 |
 |------|------|
-| 프레임워크 | React Native + Expo SDK 54 |
-| 언어 | TypeScript |
-| 네비게이션 | React Navigation v6 (Stack) |
+| 프레임워크 | React Native 0.86 + Expo SDK 57 (React 19) |
+| 언어 | TypeScript 6 |
+| 네비게이션 | React Navigation v7 (Stack) |
 | 로컬 저장 | AsyncStorage |
-| SVG | react-native-svg |
-| HTTP | axios |
+| 지도 | 네이버 지도 (네이티브 WebView, 웹은 대체 화면), 지오코딩·길찾기 API |
+| 날씨 | Open-Meteo (키 불필요, 10일 예보) |
+| 명소 데이터 | 비짓제주 API(서버 경유) + 엄선 시드 59곳, TourAPI는 2차 폴백 |
+| AI | Claude (서버 경유) — 자동 설정·날짜별 동선 설계·명소 추천 |
+| 백엔드 | Node.js + Express (`server/`), Render 무료 플랜 배포 |
+| 테스트 | Jest (앱 26 suites / 137 tests), node:test (서버) |
 
 ---
 
 ## 개발 협업 방법
 
-작업 브랜치는 `태겸_네이버`입니다. `main`에는 백엔드와 최근 작업이 없습니다.
+작업 브랜치는 `main`입니다. 큰 작업은 브랜치를 따서 하고 `main`에는 동작하는 상태만 올려주세요.
 
 ### 코드 받아오기 (매일 작업 시작 전)
 
 ```bash
-git pull origin 태겸_네이버
+git pull origin main
 ```
 
 ### 작업 후 올리기
 
 ```bash
-git add .
+git add <바꾼 파일>      # .env·키가 든 파일이 섞이지 않게 git status로 확인
 git commit -m "feat: 수정한 내용 간단히 설명"
-git push origin 태겸_네이버
+git push origin main
 ```
 
-**서버(`server/`)를 고쳤다면** 배포용 포크에도 올려야 반영됩니다.
-
-```bash
-git push fork 태겸_네이버
-```
+**서버(`server/`)를 고쳤다면** 배포용 포크에도 올려야 반영됩니다(아래 "배포용 포크" 참고).
 
 ### 커밋 메시지 규칙
 
@@ -227,14 +236,16 @@ import { colors } from '../constants/theme';
 ## 테스트
 
 ```bash
-npm test                          # 전체
+npm test                          # 전체 (26 suites / 137 tests)
 npx jest --selectProjects logic   # 알고리즘·유틸만 (빠름)
 npx jest --selectProjects ui      # 화면·컴포넌트 렌더
-cd server && npx tsx --test tests/*.test.ts   # 백엔드
+npx tsc --noEmit                  # 타입 검사
+cd server && npm install && npx tsx --test tests/*.test.ts   # 백엔드
 ```
 
 파일명으로 나뉩니다 — 순수 로직은 `*.test.ts`(Node 환경), 화면 렌더는
 `*.test.tsx`(Expo 환경)입니다. 새 테스트를 만들 때 확장자를 맞춰주세요.
+서버 테스트는 `server/`에서 `npm install`을 먼저 해야 돌아갑니다.
 
 ---
 
@@ -253,6 +264,7 @@ npx eas-cli build --platform android --profile preview
 설치를 허용해야 할 수 있습니다).
 
 설치한 APK는 **맥과 무관하게 동작**합니다. Render 서버만 살아 있으면 됩니다.
+EAS 최초 설정과 iOS 빌드 절차는 `EAS빌드.md`를 참고하세요.
 
 ### 환경변수 주의
 
@@ -277,6 +289,9 @@ npx eas-cli env:create --scope project --name <이름> --value <값> \
 - 네이버 콘솔에서 지도 키에 **패키지명 제한**(`com.gyeoldaero.app`)을 걸어두세요
 - `PLANNER_TOKEN`은 길고 무작위한 값을 쓰세요
 
+웹으로 빌드해 배포하는 경우(`npm run build:web`)에도 같은 이유로 키가 번들에 들어갑니다.
+그래서 결과물 폴더 `server/public/`은 `.gitignore`로 커밋을 막아 두었습니다.
+
 ---
 
 ## 백엔드 서버 (server/)
@@ -284,6 +299,15 @@ npx eas-cli env:create --scope project --name <이름> --value <값> \
 AI 동선 설계·명소 추천·비짓제주 명소 목록을 담당합니다. Claude API 키를 앱 번들에
 넣지 않기 위해 앱이 이 서버를 거쳐 갑니다.
 
+| 엔드포인트 | 용도 |
+|---|---|
+| `GET /health` | 상태 확인 |
+| `GET /api/visitjeju/spots` | 비짓제주 명소 목록 (스냅샷 + 백그라운드 갱신) |
+| `POST /api/trip-settings` | 자연어 → 여행 조건 변환 (자동 설정) |
+| `POST /api/route-plan` | 날짜별 방문 배정 (AI 동선 설계) |
+| `POST /api/recommend-spots`, `/api/trip-comment` | 취향 맞춤 명소 추천·일정 코멘트 |
+
+`/api` 아래 AI 경로는 `PLANNER_TOKEN` 헤더로 보호됩니다.
 서버 소스는 이 저장소의 `server/` 한 곳에만 있습니다.
 
 ```bash
@@ -310,6 +334,7 @@ EXPO_PUBLIC_SERVER_URL=http://192.168.0.12:3001
 **WiFi가 바뀌면 이 IP도 바뀝니다.** 발표장처럼 네트워크가 달라지는 자리에서는
 반드시 현장에서 다시 확인하고 `.env`를 고친 뒤 Expo를 재시작하세요
 (환경변수는 번들에 인라인되므로 앱만 새로고침해서는 반영되지 않습니다).
+배포된 서버 주소(기본값)를 쓰면 이 문제가 없습니다.
 
 ### 서버 없이도 동작합니다 (제한적으로)
 
@@ -317,7 +342,7 @@ EXPO_PUBLIC_SERVER_URL=http://192.168.0.12:3001
 
 | 기능 | 서버 있을 때 | 서버 없을 때 |
 |---|---|---|
-| 명소 목록 | 약 3,000곳 | 시드 59곳 (사진 포함) |
+| 명소 목록 | 약 3,000곳 | 시드 59곳 (사진 포함). TourAPI 키가 있으면 TourAPI 결과가 병합됨 |
 | 명소 사진 | 비짓제주 실사진 | 시드에 내장된 실사진 |
 | AI 동선 설계 | Claude가 날짜별 배정 | 최근접 이웃 알고리즘 |
 | AI 명소 추천 | 취향 맞춤 추천 | 테마·계절 점수 정렬 |
@@ -329,11 +354,10 @@ EXPO_PUBLIC_SERVER_URL=http://192.168.0.12:3001
 
 ### 발표 전 점검
 
-- [ ] `ipconfig getifaddr en0`로 현장 IP 확인 → `.env` 갱신 → Expo 재시작
-- [ ] `curl http://<IP>:3001/health` 로 서버 응답 확인
-- [ ] 서버 첫 요청은 비짓제주 수집에 약 9초 걸립니다. 발표 전에 한 번 호출해
-      캐시를 채워두세요 (`curl http://<IP>:3001/api/visitjeju/spots -o /dev/null`)
-- [ ] 맥 절전 해제 (서버가 잠들면 앱이 폴백으로 떨어집니다)
+- [ ] 배포 서버를 쓴다면 `curl https://<주소>/health` 로 깨워두기 (무료 플랜은 첫 응답에 약 1분)
+- [ ] 로컬 서버를 쓴다면 `ipconfig getifaddr en0`로 현장 IP 확인 → `.env` 갱신 → Expo 재시작
+- [ ] `EXPO_PUBLIC_PLANNER_API_TOKEN`·네이버 지도 키가 `.env`(APK는 EAS 값)에 들어 있는지 확인
+- [ ] 맥 절전 해제 (로컬 서버가 잠들면 앱이 폴백으로 떨어집니다)
 
 ### 명소 스냅샷 (콜드 스타트 대비)
 
@@ -363,27 +387,29 @@ cd server && npm run build:snapshot
 ```bash
 git remote -v
 # origin  https://github.com/jun17177/gyeoldaero.git   ← 팀 공유용
-# fork    https://github.com/kimtaekyum/gyeoldaero.git ← Render 배포용
+# fork    https://github.com/kimtaekyum/gyeoldaero.git ← Render 배포용 (직접 추가한 사람만)
 ```
 
-**서버 코드를 고쳐 배포에 반영하려면 두 곳 모두에 푸시해야 합니다.**
+Render는 포크의 **`태겸_네이버` 브랜치**를 보고 재배포하도록 설정돼 있었습니다
+(`render.yaml` 주석 기준). 2026-10-15 확인 결과 포크에는 `main`(옛 카카오 버전, `27bb0cd`)과
+`태겸_네이버`(`fabe96e`)가 있고, 배포 서버는 정상 응답합니다. 실제로 어느 브랜치를 감시하는지는
+Render 대시보드에서 확인하세요.
+서버 코드를 고쳐 배포에 반영하려면 두 곳 모두에 푸시해야 합니다.
 
 ```bash
-git push origin 태겸:태겸_네이버   # 팀에 공유
-git push fork   태겸:태겸_네이버   # Render가 이걸 보고 재배포
+git push origin main                 # 팀에 공유
+git push fork main:태겸_네이버        # Render가 보는 브랜치명에 맞춰 조정
 ```
 
-앱 코드만 고쳤다면 `origin`만으로 충분합니다. Render는 `fork`의
-`태겸_네이버` 브랜치가 바뀔 때 자동으로 다시 배포합니다.
+앱 코드만 고쳤다면 `origin`만으로 충분합니다.
 
 ### 배포하기 (Render 기준)
 
-LAN IP 의존을 없애려면 서버를 외부에 올리면 됩니다. `server/render.yaml`이
+LAN IP 의존을 없애려면 서버를 외부에 올리면 됩니다. 저장소 루트의 `render.yaml`이
 준비돼 있어 저장소만 연결하면 됩니다.
 
-1. [Render](https://render.com) 가입 → **New → Blueprint** → 이 저장소 선택
-2. 브랜치를 `태겸_네이버`로 지정하면 루트의 `render.yaml`을 읽어
-   `gyeoldaero-server` 서비스가 만들어집니다
+1. [Render](https://render.com) 가입 → **New → Blueprint** → 배포용 포크 저장소 선택
+2. 브랜치를 지정하면 루트의 `render.yaml`을 읽어 `gyeoldaero-server` 서비스가 만들어집니다
 3. 대시보드에서 아래 환경변수를 직접 입력합니다 (저장소에 키를 두지 않기 위해
    `sync: false`로 비워 둔 값들입니다)
 
@@ -428,7 +454,7 @@ curl https://<주소>/api/visitjeju/spots -o /dev/null -w "%{time_total}s\n"
 ## 자주 묻는 질문
 
 **Q. `npm install` 후 오류가 나요**  
-A. Node.js 버전을 확인해주세요. `node -v`가 18 이상이어야 합니다.
+A. Node.js 버전을 확인해주세요. `node -v`가 18 이상이어야 합니다(20 권장).
 
 **Q. QR 스캔해도 앱이 안 열려요**  
 A. `npx expo start --tunnel`로 실행했는지 확인하세요.
@@ -438,3 +464,7 @@ A. Expo Go 앱을 흔들면 나오는 메뉴에서 **Reload** 탭하세요.
 
 **Q. 타입 에러가 뜨는데 어디서 타입을 확인하나요?**  
 A. `src/types/index.ts`에 모든 타입이 정의되어 있습니다.
+
+**Q. 브랜치를 바꿨더니 `.env`나 문서가 사라졌어요**  
+A. `.env`는 git이 추적하지 않아 그대로 남습니다. 다만 `src/constants/apiKeys.ts`처럼 추적 파일은
+브랜치에 따라 덮어써집니다. 키는 파일에 직접 적지 말고 `.env`에만 두세요.
