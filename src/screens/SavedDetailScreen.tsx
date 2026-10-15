@@ -85,7 +85,7 @@ export default function SavedDetailScreen() {
         onPress: async () => {
           try {
             await deleteSchedule(schedule.id);
-            navigation.navigate('SavedList');
+            navigation.popTo('SavedList');
           } catch (e) {
             console.error('[SavedDetail] 삭제 실패:', e);
             Alert.alert('삭제 실패', '일정을 삭제하지 못했어요. 다시 시도해주세요.');

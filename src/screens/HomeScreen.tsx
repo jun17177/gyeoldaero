@@ -45,7 +45,7 @@ export default function HomeScreen() {
           >
             <Text style={styles.outlineButtonText}>자동 설정 — 취향대로 추천받기</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('SavedList')} style={styles.linkWrapper}>
+          <TouchableOpacity onPress={() => navigation.popTo('SavedList')} style={styles.linkWrapper}>
             <Text style={styles.linkText}>저장된 일정 보기</Text>
           </TouchableOpacity>
         </View>

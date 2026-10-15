@@ -120,7 +120,8 @@ export default function WeatherScreen() {
       // 이름 변경은 저장 목록의 이름 수정 기능으로 분리했으므로 여기서 복제본을 만들지 않는다.
       // dayPlans·aiComment 등은 ...schedule 스프레드로 그대로 보존, startDate만 덧붙인다
       await saveSchedule({ ...schedule, name: scheduleName, startDate });
-      navigation.navigate('SavedList');
+      // navigate는 목록을 한 겹 더 쌓으므로, 스택에 이미 있는 저장 목록까지 되돌아간다
+      navigation.popTo('SavedList');
     } catch (e) {
       console.error('[Weather] 일정 저장 실패:', e);
       Alert.alert('저장 실패', '일정을 저장하지 못했어요. 다시 시도해주세요.');
