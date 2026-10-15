@@ -28,3 +28,10 @@ test('토큰이 설정되면 맞는 헤더만 통과시킨다', () => {
   assert.equal(run('secret', 'wrong').status, 401);
   assert.equal(run('secret', undefined).status, 401);
 });
+
+test('길이가 다르거나 빈 헤더, 접두만 맞는 값은 모두 차단한다', () => {
+  assert.equal(run('secret', '').passed, false);
+  assert.equal(run('secret', 'secre').passed, false);
+  assert.equal(run('secret', 'secretX').passed, false);
+  assert.equal(run('secret', 'SECRET').passed, false);
+});

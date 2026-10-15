@@ -65,4 +65,11 @@ const PORT = Number(process.env.PORT ?? 3001);
 app.listen(PORT, () => {
   console.log(`결대로 서버 실행 중: http://localhost:${PORT}`);
   console.log(`LLM Provider: ${process.env.LLM_PROVIDER ?? 'claude'}`);
+  // 둘 다 비어 있으면 열린 상태로 동작하므로, 배포 환경에서 설정을 빠뜨렸을 때 로그로 바로 보이게 한다
+  if (!process.env.PLANNER_TOKEN) {
+    console.warn('[보안] PLANNER_TOKEN이 비어 있습니다 — AI 라우트가 인증 없이 열려 있어 누구나 LLM 크레딧을 쓸 수 있습니다.');
+  }
+  if (allowedOrigins.length === 0) {
+    console.warn('[보안] ALLOWED_ORIGINS가 비어 있습니다 — 모든 출처의 브라우저 요청을 허용합니다.');
+  }
 });
