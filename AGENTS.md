@@ -94,7 +94,7 @@ gyeoldaero/
 | S3b | `DetailConditionScreen` | 시간·인원·예산·짐·도착/출발 |
 | S4 | `SpotSelectScreen` | 명소 선택·숙소·AI 추천 |
 | S5 | `TimelineScreen` | 타임라인·편집·맛집·저장 |
-| S5_2 | `WeatherScreen` | 10일 예보·출발일 선택 → 저장 |
+| S5_2 | `WeatherScreen` | 10일 예보·출발일 선택, 10일 밖은 달력(`TripCalendar`)으로 직접 선택 → 저장 |
 | S5_3 | `RouteMapScreen` | 지도 동선 |
 | S5_1 | `BusinessHoursScreen` | 영업시간 바로가기 |
 
@@ -135,7 +135,7 @@ Timeline → Weather (저장 직전 출발일 선택) → SavedList
 | Open-Meteo 날씨·일정 반영 | ✅ 완료 |
 | 네이버 지도·지오코딩·길찾기 | ✅ 완료 (실호출은 네이버 키 필요) |
 | 서버 Render 배포, APK 빌드 설정 | ✅ 완료 |
-| 테스트 | 앱 26 suites / 146 tests 통과 |
+| 테스트 | 앱 28 suites / 165 tests 통과 |
 
 남은 일은 `TODO.md`를 본다.
 

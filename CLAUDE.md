@@ -10,7 +10,7 @@
 ## Claude Code 작업 메모
 
 - 타입·알고리즘 코드를 이 문서에 복사해 두지 않는다. 항상 원본(`src/types/index.ts`, `src/algorithms/`)을 읽는다.
-- 변경 후 `npx tsc --noEmit`과 `npm test`(26 suites / 146 tests)로 확인한다. 서버를 고쳤다면 `cd server && npm install && npx tsx --test tests/*.test.ts`.
+- 변경 후 `npx tsc --noEmit`과 `npm test`(28 suites / 165 tests)로 확인한다. 서버를 고쳤다면 `cd server && npm install && npx tsx --test tests/*.test.ts`.
 - `.env`와 키가 든 파일은 읽더라도 값을 출력하거나 커밋하지 않는다. 키 문서 `API_설정_가이드.md`는 저장소 밖(`gyeoldaero/`)에 둔다.
 - 기능을 추가하거나 버그를 고치면 저장소 밖 `TROUBLESHOOTING.md`에 기록한다 (발표 자료로 쓰인다).
 - 브랜치: 기본 브랜치는 `main`(네이버 지도 기반). 이전 카카오 기반 버전은 `main-kakao-archive`와 `현준` 브랜치에 보존돼 있다.

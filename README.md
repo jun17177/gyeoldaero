@@ -98,7 +98,7 @@ gyeoldaero/
 │   │   ├── DetailConditionScreen.tsx# S3b 세부 조건 설정
 │   │   ├── SpotSelectScreen.tsx     # S4  명소 선택·숙소·AI 추천
 │   │   ├── TimelineScreen.tsx       # S5  결과 타임라인·명소 편집·맛집 선택
-│   │   ├── WeatherScreen.tsx        # S5_2 10일 예보·출발일 선택 → 저장
+│   │   ├── WeatherScreen.tsx        # S5_2 10일 예보·출발일 선택(10일 밖은 달력) → 저장
 │   │   ├── RouteMapScreen.tsx       # S5_3 네이버 지도 동선
 │   │   └── BusinessHoursScreen.tsx  # S5_1 영업시간 바로가기
 │   │
@@ -108,6 +108,7 @@ gyeoldaero/
 │   │   ├── SpotCard.tsx             # 명소 카드
 │   │   ├── AiRecommendations.tsx    # AI 명소 추천 영역
 │   │   ├── RouteMapWebView(.web).tsx# 네이버 지도 (네이티브 WebView / 웹은 방문 순서+지도 링크 대체 화면)
+│   │   ├── TripCalendar.tsx         # 출발일 선택 월 달력 (기간이 구간으로 칠해짐)
 │   │   └── StateView.tsx            # 로딩·에러·빈 상태 공통 뷰
 │   │
 │   ├── algorithms/          # 핵심 알고리즘
@@ -173,7 +174,7 @@ gyeoldaero/
 | 명소 데이터 | 비짓제주 API(서버 경유) + 엄선 시드 59곳, TourAPI는 2차 폴백 |
 | AI | Claude (서버 경유) — 자동 설정·날짜별 동선 설계·명소 추천 |
 | 백엔드 | Node.js + Express (`server/`), Render 무료 플랜 배포 |
-| 테스트 | Jest (앱 26 suites / 146 tests), node:test (서버) |
+| 테스트 | Jest (앱 28 suites / 165 tests), node:test (서버) |
 
 ---
 
@@ -236,7 +237,7 @@ import { colors } from '../constants/theme';
 ## 테스트
 
 ```bash
-npm test                          # 전체 (26 suites / 146 tests)
+npm test                          # 전체 (28 suites / 165 tests)
 npx jest --selectProjects logic   # 알고리즘·유틸만 (빠름)
 npx jest --selectProjects ui      # 화면·컴포넌트 렌더
 npx tsc --noEmit                  # 타입 검사

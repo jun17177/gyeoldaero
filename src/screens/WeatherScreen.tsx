@@ -8,6 +8,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -19,6 +20,8 @@ import { fetchWeatherForecast, WeatherDay, SkyCondition } from '../api/weatherAp
 import { planTrip } from '../algorithms/planTrip';
 import { saveSchedule } from '../storage/scheduleStorage';
 import StateView from '../components/StateView';
+import TripCalendar from '../components/TripCalendar';
+import { addDays, addYears, startOfDay, toYyyymmdd } from '../utils/calendar';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Weather'>;
 type Route = RouteProp<RootStackParamList, 'Weather'>;
@@ -64,6 +67,10 @@ export default function WeatherScreen() {
   const [forecastIsMock, setForecastIsMock] = useState(false);
   const [loading, setLoading]       = useState(true);
   const [selectedStart, setSelected] = useState<number | null>(null);
+  // 10일 예보 밖의 날짜를 달력으로 직접 고른 경우 (예보 목록에서 고른 것과 둘 중 하나만 유지)
+  const [manualStart, setManualStart] = useState<Date | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarPick, setCalendarPick] = useState<Date | null>(null);
   const [saving, setSaving]          = useState(false);
   // 예보를 반영해 일정을 다시 짜는 중 — 몇 초 걸릴 수 있어 버튼에 표시한다
   const [replanning, setReplanning]  = useState(false);
@@ -80,6 +87,35 @@ export default function WeatherScreen() {
   const isStart    = (i: number) => selectedStart !== null && i === selectedStart;
   const isEnd      = (i: number) => selectedStart !== null && i === selectedStart + tripDays - 1;
   const canSelect  = (i: number) => i + tripDays <= forecast.length;
+
+  // 달력으로 고를 수 있는 범위: 오늘 ~ 1년 뒤 (출발일 기준, 도착일은 넘어가도 된다)
+  const minDate = startOfDay(new Date());
+  const maxDate = addYears(minDate, 1);
+
+  const openCalendar = () => {
+    const current = selectedStart !== null && forecast[selectedStart]
+      ? parseDate(forecast[selectedStart].date)
+      : manualStart;
+    setCalendarPick(current);
+    setCalendarOpen(true);
+  };
+
+  // 달력에서 확정: 고른 날짜가 10일 예보 안에 온전히 들어가면 예보 선택으로 처리해
+  // 날씨 표시와 날씨 반영 재설계를 그대로 쓰고, 아니면 날짜만 저장하는 수동 선택으로 둔다.
+  const confirmCalendar = () => {
+    if (!calendarPick) return;
+    const idx = forecast.findIndex(d => d.date === toYyyymmdd(calendarPick));
+    if (idx >= 0 && canSelect(idx)) {
+      setSelected(idx);
+      setManualStart(null);
+    } else {
+      setSelected(null);
+      setManualStart(calendarPick);
+    }
+    setCalendarOpen(false);
+  };
+
+  const hasSelection = selectedStart !== null || manualStart !== null;
 
   // 고른 날짜의 예보로 일정을 다시 맞춘다.
   // 서버는 이미 "비·눈 오는 날엔 실내 명소" 규칙으로 검증하지만, 그동안 앱이 예보를
@@ -109,9 +145,11 @@ export default function WeatherScreen() {
 
   const handleSave = async (withDate: boolean) => {
     setSaving(true);
-    const startDate = withDate && selectedStart !== null
-      ? forecast[selectedStart]?.date
-      : undefined;
+    const startDate = !withDate
+      ? undefined
+      : selectedStart !== null
+        ? forecast[selectedStart]?.date
+        : manualStart ? toYyyymmdd(manualStart) : undefined;
     try {
       const schedule = withDate && selectedStart !== null && !forecastIsMock
         ? await replanForWeather(selectedStart)
@@ -133,25 +171,31 @@ export default function WeatherScreen() {
   // 여행 기간이 예보 범위(10일)를 초과하면 날짜 선택이 불가능하므로 안내한다
   const outOfRange = !loading && forecast.length > 0 && tripDays > forecast.length;
 
-  const selectedEndIdx = selectedStart !== null ? selectedStart + tripDays - 1 : null;
+  const fmtMD = (d: Date) => `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  const tripLabel = tripDays <= 1 ? '당일치기' : `${tripDays - 1}박 ${tripDays}일`;
 
+  // 하단 요약: 예보에서 고른 날짜든 달력에서 고른 날짜든 같은 모양으로 보여준다
   const renderSummary = () => {
-    if (selectedStart === null || selectedEndIdx === null) return null;
-    const startDay = forecast[selectedStart];
-    const endDay   = forecast[selectedEndIdx];
-    if (!startDay || !endDay) return null;
-    const s = parseDate(startDay.date);
-    const e = parseDate(endDay.date);
+    let start: Date | null = null;
+    if (selectedStart !== null && forecast[selectedStart]) start = parseDate(forecast[selectedStart].date);
+    else if (manualStart) start = manualStart;
+    if (!start) return null;
+    const end = addDays(start, Math.max(tripDays, 1) - 1);
     return (
-      <View style={styles.summaryBox}>
-        <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-        <Text style={styles.summaryText}>
-          {`${s.getMonth() + 1}월 ${s.getDate()}일`}
-          {'  →  '}
-          {`${e.getMonth() + 1}월 ${e.getDate()}일`}
-          {'  ·  '}
-          {tripDays <= 1 ? '당일치기' : `${tripDays - 1}박 ${tripDays}일`}
-        </Text>
+      <View>
+        <View style={styles.summaryBox}>
+          <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+          <Text style={styles.summaryText}>
+            {fmtMD(start)}
+            {'  →  '}
+            {fmtMD(end)}
+            {'  ·  '}
+            {tripLabel}
+          </Text>
+        </View>
+        {selectedStart === null && (
+          <Text style={styles.noForecastNote}>예보는 출발 10일 전부터 볼 수 있어요 · 가까워지면 일정을 다시 저장해 날씨를 반영하세요</Text>
+        )}
       </View>
     );
   };
@@ -168,7 +212,7 @@ export default function WeatherScreen() {
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>날짜 선택</Text>
           <Text style={styles.headerSub}>
-            {tripDays <= 1 ? '당일치기' : `${tripDays - 1}박 ${tripDays}일`} 여행
+            {tripLabel} 여행
           </Text>
         </View>
         <View style={{ width: 36 }} />
@@ -189,7 +233,7 @@ export default function WeatherScreen() {
         <View style={styles.warnBanner}>
           <Ionicons name="alert-circle-outline" size={15} color={colors.danger} />
           <Text style={styles.warnText}>
-            여행 기간({tripDays}일)이 예보 범위(10일)를 넘어 날짜 선택은 건너뛰고 저장할 수 있어요
+            여행 기간({tripDays}일)이 예보 범위(10일)를 넘어요 · 아래 버튼으로 달력에서 날짜를 직접 고를 수 있어요
           </Text>
         </View>
       ) : (
@@ -208,6 +252,15 @@ export default function WeatherScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
+          {/* 10일 예보 밖(또는 예보에 없는 날짜)을 직접 고르는 입구 */}
+          <TouchableOpacity style={styles.calendarBtn} onPress={openCalendar} activeOpacity={0.8}>
+            <Ionicons name="calendar" size={18} color={colors.primary} />
+            <Text style={styles.calendarBtnText}>
+              {manualStart ? `달력에서 고른 날짜 · ${fmtMD(manualStart)} 출발` : '10일 이후 날짜 직접 선택'}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+
           {forecast.map((day, idx) => {
             const d       = parseDate(day.date);
             const meta    = WEATHER_META[day.condition];
@@ -226,7 +279,7 @@ export default function WeatherScreen() {
                   start   && styles.cardStart,
                   !selectable && styles.cardDisabled,
                 ]}
-                onPress={() => selectable && setSelected(idx)}
+                onPress={() => { if (selectable) { setSelected(idx); setManualStart(null); } }}
                 activeOpacity={selectable ? 0.75 : 1}
               >
                 {/* 날짜 영역 */}
@@ -298,10 +351,10 @@ export default function WeatherScreen() {
         <TouchableOpacity
           style={[
             styles.saveBtn,
-            selectedStart === null && styles.saveBtnDisabled,
+            !hasSelection && styles.saveBtnDisabled,
           ]}
           onPress={() => handleSave(true)}
-          disabled={selectedStart === null || saving}
+          disabled={!hasSelection || saving}
           activeOpacity={0.85}
         >
           {saving ? (
@@ -311,7 +364,7 @@ export default function WeatherScreen() {
             </View>
           ) : (
             <Text style={styles.saveBtnText}>
-              {selectedStart === null ? '날짜를 선택해주세요' : '이 날짜로 저장하기'}
+              {!hasSelection ? '날짜를 선택해주세요' : '이 날짜로 저장하기'}
             </Text>
           )}
         </TouchableOpacity>
@@ -325,6 +378,51 @@ export default function WeatherScreen() {
           <Text style={styles.skipBtnText}>날짜 없이 저장</Text>
         </TouchableOpacity>
       </View>
+
+      {/* 달력 (바텀 시트) */}
+      <Modal visible={calendarOpen} transparent animationType="slide" onRequestClose={() => setCalendarOpen(false)}>
+        <View style={styles.sheetOverlay}>
+          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setCalendarOpen(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>출발 날짜 선택</Text>
+            <Text style={styles.sheetSub}>{tripLabel} 여행 · 출발일을 탭하면 기간이 표시돼요</Text>
+            <TripCalendar
+              tripDays={tripDays}
+              selectedStart={calendarPick}
+              onSelect={setCalendarPick}
+              minDate={minDate}
+              maxDate={maxDate}
+            />
+            {calendarPick ? (
+              <View style={[styles.summaryBox, { marginTop: spacing.md }]}>
+                <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                <Text style={styles.summaryText}>
+                  {fmtMD(calendarPick)}
+                  {'  →  '}
+                  {fmtMD(addDays(calendarPick, Math.max(tripDays, 1) - 1))}
+                  {'  ·  '}
+                  {tripLabel}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.sheetHint}>오늘부터 1년 뒤까지 고를 수 있어요</Text>
+            )}
+            <View style={styles.sheetBtns}>
+              <TouchableOpacity style={styles.sheetCancel} onPress={() => setCalendarOpen(false)}>
+                <Text style={styles.sheetCancelText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sheetConfirm, !calendarPick && styles.saveBtnDisabled]}
+                onPress={confirmCalendar}
+                disabled={!calendarPick}
+              >
+                <Text style={styles.sheetConfirmText}>이 날짜로 선택</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -501,6 +599,65 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   summaryText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+  noForecastNote: { fontSize: 11, color: colors.textMuted, marginTop: 6, lineHeight: 16 },
+
+  // 달력 열기 버튼 (예보 목록 맨 위)
+  calendarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    marginBottom: spacing.md,
+  },
+  calendarBtnText: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.primary },
+
+  // 달력 바텀 시트
+  sheetOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheetBackdrop: { flex: 1 },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl + 8,
+    borderTopRightRadius: radius.xl + 8,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl + 4,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  sheetTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+  sheetSub: { fontSize: 12, color: colors.textMuted, marginTop: 2, marginBottom: spacing.lg },
+  sheetHint: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: spacing.md },
+  sheetBtns: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+  sheetCancel: {
+    flex: 1,
+    height: 56,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetCancelText: { color: colors.textMuted, fontSize: 15, fontWeight: '600' },
+  sheetConfirm: {
+    flex: 2,
+    height: 56,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 
   // 저장 버튼
   saveBtn: {
