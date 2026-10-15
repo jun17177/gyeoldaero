@@ -45,7 +45,7 @@
 - [ ] `Maximum update depth exceeded` 네이티브 재현 여부 확인 (웹 전용 현상으로 추정, 명소 2,946개 리스트)
 
 ### 정리
-- [ ] 로컬·원격 브랜치 정리 (`main-naver`, `태겸_네이버`, `fix/trip-days-label-and-docs`, `backup/local-main-f4d95fa` 등)
+- [ ] 로컬·원격 브랜치 정리 (`main-naver`, `fix/trip-days-label-and-docs`, `backup/local-main-f4d95fa` 등) — **`태겸_네이버`(로컬·`origin`·포크)는 건드리지 않는다** (2026-10-15 지시)
 - [x] axios 1.15.2 → 1.20.0, 서버 의존성 취약점 0건, 서버 토큰 비교를 timing-safe로 변경 (2026-10-15)
 - [ ] 앱 `npm audit`에 남은 HIGH(Expo CLI·Metro·Jest 등 개발 도구 전이 의존성)는 Expo/React Native 업그레이드 때 함께 처리 — `npm audit fix --force`는 expo를 옛 버전(44)으로 내리라고 하므로 쓰지 않는다
 - [ ] Render에 `PLANNER_TOKEN`·`ALLOWED_ORIGINS`가 실제로 설정돼 있는지 대시보드에서 확인 (비어 있으면 서버가 시작 시 경고를 로그에 남김)
