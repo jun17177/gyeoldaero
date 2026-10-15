@@ -87,7 +87,7 @@ gyeoldaero/
 |---|---|---|
 | S1 | `SplashScreen` | 스플래시 후 `SavedList`로 이동 |
 | S0 | `SavedListScreen` | 저장된 일정 목록 (여행 기간, 10일 예보와 겹치면 날씨 아이콘 줄) |
-| S6 | `SavedDetailScreen` | 저장 상세·지도·공유·삭제 |
+| S6 | `SavedDetailScreen` | 저장 상세·지도·공유·삭제, 일차별 날씨, 비·눈 예보 시 조정 안내 |
 | S2 | `HomeScreen` | 직접 설정 / 자동 설정 |
 | S2a | `AutoSetupScreen` | 자연어 → 여행 조건(AI) |
 | S3a | `TravelStyleScreen` | 테마·계절 (날씨는 S4에서 Open-Meteo로 채움) |
@@ -135,7 +135,7 @@ Timeline → Weather (저장 직전 출발일 선택) → SavedList
 | Open-Meteo 날씨·일정 반영 | ✅ 완료 |
 | 네이버 지도·지오코딩·길찾기 | ✅ 완료 (실호출은 네이버 키 필요) |
 | 서버 Render 배포, APK 빌드 설정 | ✅ 완료 |
-| 테스트 | 앱 29 suites / 175 tests 통과 |
+| 테스트 | 앱 29 suites / 183 tests 통과 |
 
 남은 일은 `TODO.md`를 본다.
 

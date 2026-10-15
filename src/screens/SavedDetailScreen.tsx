@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,9 @@ import { generateTimeline } from '../algorithms/generateTimeline';
 import { deleteSchedule } from '../storage/scheduleStorage';
 import { formatStartDate, parseYyyymmdd } from '../utils/date';
 import { buildShareText } from '../utils/shareSchedule';
+import { fetchWeatherForecastCached, WeatherDay } from '../api/weatherApi';
+import { WEATHER_META } from '../constants/weatherMeta';
+import { tripWeather, weatherAdvice } from '../utils/tripWeather';
 
 type Nav = StackNavigationProp<RootStackParamList, 'SavedDetail'>;
 type Route = RouteProp<RootStackParamList, 'SavedDetail'>;
@@ -51,6 +54,18 @@ export default function SavedDetailScreen() {
         : generateTimeline(schedule),
     [schedule]
   );
+
+  // 10일 예보 — 실패·임시 데이터면 비워 두어 날씨 표시와 안내를 모두 숨긴다
+  const [forecast, setForecast] = useState<WeatherDay[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchWeatherForecastCached()
+      .then(f => { if (!cancelled) setForecast(f.isMock ? [] : f.days); })
+      .catch(() => { if (!cancelled) setForecast([]); });
+    return () => { cancelled = true; };
+  }, []);
+  const weather = tripWeather(schedule.startDate, schedule.days, forecast);
+  const advice = weatherAdvice(schedule.startDate, schedule.days, forecast, schedule.weatherPlan);
 
   const departure = formatStartDate(schedule.startDate);
   const startBase = parseYyyymmdd(schedule.startDate);
@@ -173,6 +188,39 @@ export default function SavedDetailScreen() {
           ))}
         </View>
 
+        {/* 날씨 안내 — 비·눈 예보가 일정과 겹칠 때만 */}
+        {advice && (
+          <View style={styles.adviceCard}>
+            <View style={styles.adviceTitleRow}>
+              <Ionicons
+                name={advice.state === 'adjusted' ? 'checkmark-circle' : WEATHER_META.rainy.icon}
+                size={16}
+                color={advice.state === 'adjusted' ? colors.teal : WEATHER_META.rainy.color}
+              />
+              <Text style={[styles.adviceTitle, advice.state === 'adjusted' && { color: colors.teal }]}>
+                {advice.state === 'adjusted'
+                  ? '날씨에 맞춰 조정된 일정이에요'
+                  : `${advice.badDays.map(d => `${d}일차`).join('·')}에 비·눈 예보가 있어요`}
+              </Text>
+            </View>
+            {advice.state === 'suggest' && (
+              <>
+                <Text style={styles.adviceText}>실내 명소 중심으로 일정을 다시 조정할 수 있어요.</Text>
+                <TouchableOpacity
+                  style={styles.adviceBtn}
+                  onPress={() => navigation.navigate('Weather', { schedule, scheduleName: schedule.name })}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.adviceBtnText}>날씨 반영해 조정하기</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {advice.state === 'partial' && (
+              <Text style={styles.adviceText}>예보가 일정의 일부 날짜만 있어 자동 조정은 어려워요. 출발이 가까워지면 다시 확인해 주세요.</Text>
+            )}
+          </View>
+        )}
+
         {/* AI 코멘트 */}
         {schedule.aiComment ? (
           <View style={styles.aiCard}>
@@ -201,6 +249,16 @@ export default function SavedDetailScreen() {
             <View style={styles.dayHeader}>
               <Text style={styles.dayTitle}>{plan.day}일차</Text>
               {dayDate(plan.day) && <Text style={styles.dayDate}>{dayDate(plan.day)}</Text>}
+              {weather?.forecastDays[plan.day - 1] && (() => {
+                const f = weather.forecastDays[plan.day - 1]!;
+                const meta = WEATHER_META[f.condition];
+                return (
+                  <View style={styles.dayWeather} accessible accessibilityLabel={`${meta.label}, 기온 ${f.tMin}도에서 ${f.tMax}도`}>
+                    <Ionicons name={meta.icon} size={15} color={meta.color} />
+                    <Text style={styles.dayWeatherText}>{f.tMin}°~{f.tMax}°</Text>
+                  </View>
+                );
+              })()}
             </View>
             <View style={styles.dayBody}>
               {plan.items.map((item, idx) =>
@@ -290,6 +348,26 @@ const styles = StyleSheet.create({
   aiTitle: { fontSize: 12, fontWeight: '700', color: colors.primary },
   aiText: { fontSize: 13, color: colors.text, lineHeight: 19 },
 
+  // 날씨 안내 카드 (날씨 화면의 비 색과 같은 톤)
+  adviceCard: {
+    marginTop: spacing.md,
+    backgroundColor: WEATHER_META.rainy.bg,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  adviceTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  adviceTitle: { fontSize: 13, fontWeight: '700', color: WEATHER_META.rainy.color },
+  adviceText: { fontSize: 12, color: colors.text, lineHeight: 18, marginTop: 4 },
+  adviceBtn: {
+    marginTop: spacing.sm,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adviceBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
   mapBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -308,6 +386,9 @@ const styles = StyleSheet.create({
   dayHeader: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginBottom: spacing.sm },
   dayTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   dayDate: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  // 그날 날씨는 머리글 오른쪽 끝에 붙인다 (아이콘 + 그날 최저~최고)
+  dayWeather: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto', alignSelf: 'center' },
+  dayWeatherText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   dayBody: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

@@ -74,6 +74,24 @@ export default function WeatherScreen() {
       .finally(() => setLoading(false));
   }, []);
 
+  // 이미 출발일이 정해진 일정(저장된 일정을 다시 저장하는 경우)은 그 날짜를 미리 선택해 둔다.
+  // 예보 안에 온전히 들어오면 예보 선택, 아니면 달력 선택으로 이어서 바로 저장할 수 있다.
+  useEffect(() => {
+    if (loading || !schedule.startDate) return;
+    const idx = forecast.findIndex(d => d.date === schedule.startDate);
+    if (idx >= 0 && idx + tripDays <= forecast.length) {
+      setSelected(idx);
+      return;
+    }
+    const d = parseDate(schedule.startDate);
+    const today = startOfDay(new Date());
+    if (!Number.isNaN(d.getTime()) && d.getTime() >= today.getTime() && d.getTime() <= addYears(today, 1).getTime()) {
+      setManualStart(d);
+    }
+  // 예보를 받은 직후 한 번만 — 이후 사용자의 선택을 덮어쓰지 않는다
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   const inRange    = (i: number) => selectedStart !== null && i >= selectedStart && i < selectedStart + tripDays;
   const isStart    = (i: number) => selectedStart !== null && i === selectedStart;
   const isEnd      = (i: number) => selectedStart !== null && i === selectedStart + tripDays - 1;
@@ -119,12 +137,20 @@ export default function WeatherScreen() {
     setReplanning(true);
     try {
       const planned = await planTrip(schedule, { weatherByDay });
+      // 비·눈 반영은 AI 설계만 할 수 있다. 서버·토큰 문제로 알고리즘 일정으로 대체됐다면 날씨가 반영된 것이 아니고
+      // 기존 일정(직접 편집한 순서 포함)을 덮어쓰기만 하므로, 기존 일정을 유지하고 날짜만 저장한다.
+      if (planned.planSource !== 'ai') {
+        Alert.alert('날씨 반영은 하지 못했어요', 'AI 서버에 연결하지 못해 일정은 그대로 두고 날짜만 저장했어요.');
+        return schedule;
+      }
       return {
         ...schedule,
         ...planned,
         spots: planned.spots ?? schedule.spots,
         // 동선이 바뀌면 식당 추천도 다시 받아야 한다
         mealOptionsEnriched: false,
+        // 같은 예보로 또 조정하라고 안내하지 않도록 반영한 날씨를 기록한다 (저장 상세의 안내가 이 값을 본다)
+        weatherPlan: weatherByDay.join(','),
       };
     } catch (e) {
       console.warn('[Weather] 날씨 반영 재설계 실패, 기존 일정 유지:', e);

@@ -36,6 +36,7 @@ export interface TripSchedule {
   mealOptionsEnriched?: boolean;
   aiComment?: string;   // AI 플래너 코멘트 — 저장 시 함께 보관해 재방문 시 재호출 방지
   startDate?: string;   // 여행 출발일 (YYYYMMDD) — 날씨 화면에서 선택, 미선택 시 undefined
+  weatherPlan?: string; // 날씨(비·눈)를 반영해 재설계했을 때의 날짜별 날씨 — 같은 예보로 또 조정하라고 안내하지 않기 위한 표식 (예: 'cloudy,rainy,sunny')
   manualSpotOrder?: boolean; // 사용자가 타임라인에서 직접 순서를 조정함 — 자동 재정렬(nearestNeighbor) 건너뜀
 }
 
