@@ -9,12 +9,14 @@ import {
   Linking,
   Alert,
   Share,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { RootStackParamList, DayPlan, TimelineItem } from '../types';
+import { RootStackParamList, DayPlan, TimelineItem, Spot } from '../types';
 import { findSpotOf } from '../utils/findSpot';
 import { colors, spacing, radius, shadows, fonts } from '../constants/theme';
 import { ACCOMMODATION_LABEL } from '../constants/accommodations';
@@ -25,6 +27,8 @@ import { buildShareText } from '../utils/shareSchedule';
 import { fetchWeatherForecastCached, WeatherDay } from '../api/weatherApi';
 import { WEATHER_META } from '../constants/weatherMeta';
 import { tripWeather, weatherAdvice } from '../utils/tripWeather';
+import { addSpotsToSchedule, countRainyDaySpots, recommendIndoorSpots } from '../utils/indoorSuggest';
+import { loadSpotPool } from '../api/spotPool';
 
 type Nav = StackNavigationProp<RootStackParamList, 'SavedDetail'>;
 type Route = RouteProp<RootStackParamList, 'SavedDetail'>;
@@ -65,7 +69,40 @@ export default function SavedDetailScreen() {
     return () => { cancelled = true; };
   }, []);
   const weather = tripWeather(schedule.startDate, schedule.days, forecast);
-  const advice = weatherAdvice(schedule.startDate, schedule.days, forecast, schedule.weatherPlan);
+  const rainyDaySpots = countRainyDaySpots(schedule.spots);
+  const advice = weatherAdvice(schedule.startDate, schedule.days, forecast, schedule.weatherPlan, rainyDaySpots);
+
+  // 비 오는 날 갈 만한 실내 명소 추천 시트 — 야외 명소 위주라 조정할 자리가 없을 때 연다
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<Spot[]>([]);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+
+  const openSuggestions = async () => {
+    setSuggestOpen(true);
+    setSuggestLoading(true);
+    setPicked(new Set());
+    try {
+      setSuggestions(recommendIndoorSpots(schedule, await loadSpotPool()));
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setSuggestLoading(false);
+    }
+  };
+  const togglePick = (id: string) =>
+    setPicked(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  // 고른 명소를 담아 편집 화면으로 — 거기서 저장하면 날짜 선택 화면에서 AI가 비·눈 오는 날에 배정한다
+  const confirmSuggestions = () => {
+    const added = suggestions.filter(sp => picked.has(sp.id));
+    if (added.length === 0) return;
+    setSuggestOpen(false);
+    navigation.navigate('Timeline', { schedule: addSpotsToSchedule(schedule, added) });
+  };
 
   const departure = formatStartDate(schedule.startDate);
   const startBase = parseYyyymmdd(schedule.startDate);
@@ -215,6 +252,17 @@ export default function SavedDetailScreen() {
                 </TouchableOpacity>
               </>
             )}
+            {advice.state === 'needIndoor' && (
+              <>
+                <Text style={styles.adviceText}>
+                  {`고른 명소 중 실내 명소가 ${rainyDaySpots}곳뿐이라 비 오는 날 갈 곳이 부족해요. 갈 만한 실내 명소를 추천해 드릴게요.`}
+                  {!advice.fullyCovered ? ' (예보는 일정의 일부 날짜만 있어요)' : ''}
+                </Text>
+                <TouchableOpacity style={styles.adviceBtn} onPress={openSuggestions} activeOpacity={0.85}>
+                  <Text style={styles.adviceBtnText}>실내 명소 추천 보기</Text>
+                </TouchableOpacity>
+              </>
+            )}
             {advice.state === 'partial' && (
               <Text style={styles.adviceText}>예보가 일정의 일부 날짜만 있어 자동 조정은 어려워요. 출발이 가까워지면 다시 확인해 주세요.</Text>
             )}
@@ -280,6 +328,58 @@ export default function SavedDetailScreen() {
 
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
+
+      {/* 실내 명소 추천 (바텀 시트) */}
+      <Modal visible={suggestOpen} transparent animationType="slide" onRequestClose={() => setSuggestOpen(false)}>
+        <View style={styles.sheetOverlay}>
+          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setSuggestOpen(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>비 오는 날 갈 만한 실내 명소</Text>
+            <Text style={styles.sheetSub}>일정 중심에서 가까운 순이에요 · 담으면 편집 화면에서 동선을 다시 짜요</Text>
+
+            {suggestLoading ? (
+              <View style={styles.sheetCenter}><ActivityIndicator color={colors.primary} /></View>
+            ) : suggestions.length === 0 ? (
+              <View style={styles.sheetCenter}>
+                <Text style={styles.sheetEmpty}>추천할 실내 명소를 찾지 못했어요.{'\n'}편집 화면에서 직접 담아 주세요.</Text>
+              </View>
+            ) : (
+              suggestions.map(sp => {
+                const on = picked.has(sp.id);
+                return (
+                  <TouchableOpacity
+                    key={sp.id}
+                    style={[styles.sugRow, on && styles.sugRowOn]}
+                    onPress={() => togglePick(sp.id)}
+                    activeOpacity={0.8}
+                    accessibilityLabel={`${sp.name} ${on ? '담김' : '담기'}`}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.sugName}>{sp.name}</Text>
+                      <Text style={styles.sugMeta}>{sp.category === 'food' ? '카페·미식' : sp.category === 'culture' ? '문화' : '체험'} · {sp.durationMinutes}분</Text>
+                    </View>
+                    <Ionicons name={on ? 'checkmark-circle' : 'add-circle-outline'} size={24} color={on ? colors.primary : colors.textMuted} />
+                  </TouchableOpacity>
+                );
+              })
+            )}
+
+            <View style={styles.sheetBtns}>
+              <TouchableOpacity style={styles.sheetCancel} onPress={() => setSuggestOpen(false)}>
+                <Text style={styles.sheetCancelText}>닫기</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sheetConfirm, picked.size === 0 && styles.sheetConfirmOff]}
+                onPress={confirmSuggestions}
+                disabled={picked.size === 0}
+              >
+                <Text style={styles.sheetConfirmText}>{picked.size === 0 ? '명소를 골라 주세요' : `${picked.size}곳 담고 편집하기`}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -367,6 +467,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   adviceBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  // 추천 시트
+  sheetOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheetBackdrop: { flex: 1 },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl + 8,
+    borderTopRightRadius: radius.xl + 8,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl + 4,
+  },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.md },
+  sheetTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+  sheetSub: { fontSize: 12, color: colors.textMuted, marginTop: 2, marginBottom: spacing.lg, lineHeight: 17 },
+  sheetCenter: { paddingVertical: spacing.xxl, alignItems: 'center' },
+  sheetEmpty: { fontSize: 13, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
+  sugRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  sugRowOn: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  sugName: { fontSize: 14, fontWeight: '700', color: colors.text },
+  sugMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  sheetBtns: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  sheetCancel: { flex: 1, height: 56, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  sheetCancelText: { color: colors.textMuted, fontSize: 15, fontWeight: '600' },
+  sheetConfirm: { flex: 2, height: 56, borderRadius: radius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  sheetConfirmOff: { backgroundColor: colors.border },
+  sheetConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 
   mapBtn: {
     flexDirection: 'row',

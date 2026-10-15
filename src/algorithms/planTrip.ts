@@ -5,6 +5,7 @@ import { estimateTravelMinutes } from './travelTime';
 import { countTripDays, generateTimeline as generateAiTimeline } from './aiTimeline';
 import { generateTimeline, ACCOMMODATION_COORDS } from './generateTimeline';
 import { requestAiRoutePlan } from '../api/routePlanApi';
+import { CONDITION_FACTOR } from './weatherFactor';
 
 import { AI_MAX_SPOTS } from '../constants/config';
 
@@ -56,7 +57,7 @@ export async function planWithAlgorithm(schedule: TripSchedule, weatherFactor?: 
 export async function planWithAi(schedule: TripSchedule, options: PlanOptions = {}): Promise<PlannedTrip | null> {
   const { spots, settings, accommodation } = schedule;
   if (spots.length === 0 || spots.length > AI_MAX_SPOTS) return null;
-  const weatherFactor = options.weatherFactor ?? SEASON_FACTOR[settings.season] * ({ sunny: 1, cloudy: 1, rainy: 1.2, snowy: 1.3 }[settings.weather]);
+  const weatherFactor = options.weatherFactor ?? SEASON_FACTOR[settings.season] * CONDITION_FACTOR[settings.weather];
 
   try {
     const accom = accommodation === 'custom' && schedule.customAccommodationCoords

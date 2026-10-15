@@ -47,7 +47,8 @@ function isRestaurant(spot: RoutePlanRequest['spots'][number]): boolean {
   return spot.category === 'food' && spot.foodType === 'restaurant';
 }
 
-const INDOOR_TAG_HINTS = ['실내', '박물관', '미술관', '전시', '시장', '카페', '체험', '수족관', '동굴'];
+// '체험'은 넣지 않는다 (앱 utils/spotEnvironment.ts와 같은 기준) — 야외 체험도 같은 태그라 비 오는 날에 실내로 잘못 취급됐다.
+const INDOOR_TAG_HINTS = ['실내', '박물관', '미술관', '전시', '시장', '카페', '수족관', '동굴'];
 
 // 비·눈 오는 날 배치를 모델이 명소 이름만 보고 추측하지 않도록 서버가 분류한다 (프롬프트 표시와 검증에 함께 사용)
 export function isIndoor(spot: RoutePlanRequest['spots'][number]): boolean {

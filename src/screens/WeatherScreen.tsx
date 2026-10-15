@@ -19,6 +19,7 @@ import { colors, spacing, radius, shadows } from '../constants/theme';
 import { fetchWeatherForecast, WeatherDay } from '../api/weatherApi';
 import { WEATHER_META } from '../constants/weatherMeta';
 import { planTrip } from '../algorithms/planTrip';
+import { forecastWeatherFactor } from '../algorithms/weatherFactor';
 import { saveSchedule } from '../storage/scheduleStorage';
 import StateView from '../components/StateView';
 import TripCalendar from '../components/TripCalendar';
@@ -136,7 +137,11 @@ export default function WeatherScreen() {
     if (!weatherByDay.some(c => c === 'rainy' || c === 'snowy')) return schedule;
     setReplanning(true);
     try {
-      const planned = await planTrip(schedule, { weatherByDay });
+      // 일수 보정도 오늘 날씨가 아니라 이 여행 날짜들의 예보로 구한다
+      const planned = await planTrip(schedule, {
+        weatherByDay,
+        weatherFactor: forecastWeatherFactor(schedule.settings.season, weatherByDay),
+      });
       // 비·눈 반영은 AI 설계만 할 수 있다. 서버·토큰 문제로 알고리즘 일정으로 대체됐다면 날씨가 반영된 것이 아니고
       // 기존 일정(직접 편집한 순서 포함)을 덮어쓰기만 하므로, 기존 일정을 유지하고 날짜만 저장한다.
       if (planned.planSource !== 'ai') {

@@ -51,7 +51,8 @@
 ### 핵심 알고리즘 (`src/algorithms/`)
 - `haversine.ts` — GPS 두 좌표 간 거리
 - `nearestNeighbor.ts` — TSP 최근접 이웃 경로
-- `timeBudget.ts` — 여행 일수 산출 (짐 계수 × 날씨·계절 계수, 날씨는 오늘 날씨 기준)
+- `timeBudget.ts` — 여행 일수 산출 (짐 계수 × 날씨·계절 계수)
+- `weatherFactor.ts` — 날씨 계수 단일 기준과 `forecastWeatherFactor`(여행 날짜 예보의 평균 × 계절). 오늘 날씨는 쓰지 않는다
 - `travelTime.ts` — 명소 간 이동시간 추정
 - `generateTimeline.ts` — `DayPlan[]` 생성 (식사·이동·숙소 슬롯 포함)
 - `aiTimeline.ts` — 서버 AI의 날짜별 배정을 타임라인으로 변환
@@ -135,7 +136,7 @@ Timeline → Weather (저장 직전 출발일 선택) → SavedList
 | Open-Meteo 날씨·일정 반영 | ✅ 완료 |
 | 네이버 지도·지오코딩·길찾기 | ✅ 완료 (실호출은 네이버 키 필요) |
 | 서버 Render 배포, APK 빌드 설정 | ✅ 완료 |
-| 테스트 | 앱 29 suites / 183 tests 통과 |
+| 테스트 | 앱 31 suites / 200 tests 통과 |
 
 남은 일은 `TODO.md`를 본다.
 

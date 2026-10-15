@@ -3,6 +3,8 @@ import { nearestNeighbor } from './nearestNeighbor';
 import { calcTripDays } from './timeBudget';
 import { colors } from '../constants/theme';
 import { ACCOMMODATION_COORDS } from '../constants/accommodations';
+import { SEASON_FACTOR } from './timeBudget';
+import { CONDITION_FACTOR } from './weatherFactor';
 
 // 숙소 좌표는 constants/accommodations.ts가 단일 출처 (기존 import 경로 유지를 위해 다시 내보낸다)
 export { ACCOMMODATION_COORDS } from '../constants/accommodations';
@@ -10,14 +12,6 @@ export { ACCOMMODATION_COORDS } from '../constants/accommodations';
 const MEAL_OPTIONS: Record<'lunch' | 'dinner', string[]> = {
   lunch: ['흑돼지 두루치기', '갈치조림 정식', '한치물회'],
   dinner: ['성게국수', '옥돔구이 정식', '해물탕'],
-};
-
-// 일수 보정계수 — 기간 산정의 단일 기준. (계절 × 날씨) 곱으로 SpotSelect 미리보기와 동일하게 산출한다.
-const CONDITION_FACTOR: Record<string, number> = {
-  sunny: 1.0, cloudy: 1.0, rainy: 1.2, snowy: 1.3, // weatherApi CONDITION_META와 일치
-};
-const SEASON_FACTOR: Record<string, number> = {
-  spring: 1.0, summer: 1.1, fall: 1.0, winter: 1.15, // 더위/추위로 이동·활동 시간 증가
 };
 
 // 하루를 넘긴 시각(24:20 같은 값)을 그대로 내보내지 않는다.

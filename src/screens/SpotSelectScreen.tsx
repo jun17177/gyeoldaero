@@ -190,7 +190,7 @@ export default function SpotSelectScreen() {
 
     fetchSpotRecommendations({
       spots,
-      settings: { ...settings, weather: weather?.condition ?? settings.weather },
+      settings,
       maxCount: mode === 'auto' ? 6 : 5,
     })
       .then(result => {
@@ -318,10 +318,10 @@ export default function SpotSelectScreen() {
           : undefined,
       moveDurationsBySpotId: {},
       tags: settings.themes,
-      settings: { ...settings, weather: weather?.condition ?? settings.weather },
+      settings,
     };
     return generateTimeline(preview).length;
-  }, [selected, settings, accommodation, customCoords, weather]);
+  }, [selected, settings, accommodation, customCoords]);
 
   const customAccommodationReady = accommodation !== 'custom' || !!customCoords;
   const canOptimize = selected.length > 0 && customAccommodationReady && !customResolving && !routeOptimizing;
@@ -385,7 +385,7 @@ export default function SpotSelectScreen() {
           : undefined,
         moveDurationsBySpotId,
         tags: settings.themes,
-        settings: { ...settings, weather: weather?.condition ?? settings.weather },
+        settings,
       };
       // days는 실제 생성되는 일자 수로 확정 — 누락 방지로 늘어난 날짜까지 반영, 전 화면 표시와 일치
       const planned = await planTrip(scheduleBase);
@@ -531,12 +531,13 @@ export default function SpotSelectScreen() {
           <View style={styles.daysHeaderRow}>
             <Text style={styles.daysText}>{formatDays(days)}</Text>
             {weather && (
+              // 오늘 날씨 안내용 칩 — 일수 계산에는 쓰지 않는다 (여행 날짜의 예보는 날짜를 고르는 저장 단계에서 반영).
               // isMock이면 조회 실패로 기본값(맑음)을 쓰는 상태 — 실제 예보처럼 보이지 않게 표시한다
               <View style={[styles.weatherChip, weather.isMock && styles.weatherChipMock]}>
                 <Text style={[styles.weatherChipText, weather.isMock && styles.weatherChipTextMock]}>
                   {weather.isMock
                     ? '날씨 정보 없음'
-                    : `${weather.emoji} ${weather.label}${weather.tempC != null ? ` ${Math.round(weather.tempC)}°` : ''}`}
+                    : `오늘 ${weather.emoji} ${weather.label}${weather.tempC != null ? ` ${Math.round(weather.tempC)}°` : ''}`}
                 </Text>
               </View>
             )}

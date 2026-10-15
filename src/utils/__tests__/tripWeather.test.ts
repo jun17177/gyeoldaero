@@ -69,11 +69,11 @@ describe('tripWeather', () => {
 describe('weatherAdvice', () => {
   it('일정 전체가 예보 안이고 비·눈이 있으면 조정을 제안한다 (비·눈 오는 일차 목록 포함)', () => {
     // 10/16 구름, 10/17 비, 10/18 비
-    expect(weatherAdvice('20261016', 3, forecast)).toEqual({ state: 'suggest', badDays: [2, 3] });
+    expect(weatherAdvice('20261016', 3, forecast)).toEqual({ state: 'suggest', badDays: [2, 3], fullyCovered: true });
   });
 
   it('눈이 오는 날도 비와 같이 센다', () => {
-    expect(weatherAdvice('20261020', 3, forecast)).toEqual({ state: 'suggest', badDays: [2] }); // 20 맑음, 21 눈, 22 맑음
+    expect(weatherAdvice('20261020', 3, forecast)).toEqual({ state: 'suggest', badDays: [2], fullyCovered: true }); // 20 맑음, 21 눈, 22 맑음
   });
 
   it('비·눈이 없으면 안내하지 않는다', () => {
@@ -82,7 +82,7 @@ describe('weatherAdvice', () => {
   });
 
   it('이미 같은 예보로 조정한 일정(weatherPlan이 같음)은 adjusted', () => {
-    expect(weatherAdvice('20261016', 3, forecast, 'cloudy,rainy,rainy')).toEqual({ state: 'adjusted', badDays: [2, 3] });
+    expect(weatherAdvice('20261016', 3, forecast, 'cloudy,rainy,rainy')).toEqual({ state: 'adjusted', badDays: [2, 3], fullyCovered: true });
   });
 
   it('조정 뒤 예보가 바뀌었으면(weatherPlan이 다름) 다시 제안한다', () => {
@@ -93,12 +93,37 @@ describe('weatherAdvice', () => {
     // 10/23부터 4일: 23 구름, 24 맑음, 25·26 예보 없음 → 비·눈 없음이라 null
     expect(weatherAdvice('20261023', 4, forecast)).toBeNull();
     // 10/21(눈)부터 5일: 21 눈, 22 맑음, 23 구름, 24 맑음, 25 예보 없음
-    expect(weatherAdvice('20261021', 5, forecast)).toEqual({ state: 'partial', badDays: [1] });
+    expect(weatherAdvice('20261021', 5, forecast)).toEqual({ state: 'partial', badDays: [1], fullyCovered: false });
   });
 
   it('출발일이 없거나 예보와 안 겹치면 null', () => {
     expect(weatherAdvice(undefined, 3, forecast)).toBeNull();
     expect(weatherAdvice('20261201', 3, forecast)).toBeNull();
     expect(weatherAdvice('20261016', 3, [])).toBeNull();
+  });
+
+  describe('실내 명소 수(rainyDaySpotCount)를 넘긴 경우', () => {
+    it('비·눈 오는 날 수보다 실내 명소가 적으면 needIndoor (조정 대신 추천을 제안)', () => {
+      // 10/16 구름, 10/17 비, 10/18 비 → 비 이틀, 실내 명소 1곳
+      expect(weatherAdvice('20261016', 3, forecast, undefined, 1)).toEqual({ state: 'needIndoor', badDays: [2, 3], fullyCovered: true });
+      expect(weatherAdvice('20261016', 3, forecast, undefined, 0)?.state).toBe('needIndoor');
+    });
+
+    it('실내 명소가 비 오는 날 수 이상이면 기존대로 조정을 제안한다', () => {
+      expect(weatherAdvice('20261016', 3, forecast, undefined, 2)?.state).toBe('suggest');
+      expect(weatherAdvice('20261016', 3, forecast, undefined, 5)?.state).toBe('suggest');
+    });
+
+    it('예보가 일부만 덮어도 실내 명소가 부족하면 needIndoor (fullyCovered=false)', () => {
+      expect(weatherAdvice('20261021', 5, forecast, undefined, 0)).toEqual({ state: 'needIndoor', badDays: [1], fullyCovered: false });
+    });
+
+    it('이미 조정한 일정은 실내 명소가 적어도 adjusted 그대로', () => {
+      expect(weatherAdvice('20261016', 3, forecast, 'cloudy,rainy,rainy', 0)?.state).toBe('adjusted');
+    });
+
+    it('비·눈이 없으면 실내 명소가 없어도 안내하지 않는다', () => {
+      expect(weatherAdvice('20261019', 2, forecast, undefined, 0)).toBeNull();
+    });
   });
 });
