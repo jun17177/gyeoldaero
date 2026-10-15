@@ -19,6 +19,9 @@ import { RootStackParamList, TripSchedule } from '../types';
 import { loadAllSchedules, deleteSchedule, renameSchedule } from '../storage/scheduleStorage';
 import { colors, spacing, radius, shadows, fonts } from '../constants/theme';
 import { formatTripRange } from '../utils/date';
+import { fetchWeatherForecastCached, WeatherDay } from '../api/weatherApi';
+import { WEATHER_META } from '../constants/weatherMeta';
+import { tripWeather, TripWeather } from '../utils/tripWeather';
 
 type Nav = StackNavigationProp<RootStackParamList, 'SavedList'>;
 
@@ -42,6 +45,29 @@ function EmptyLogo() {
   );
 }
 
+// 일정 전체의 날씨를 아이콘 한 줄로, 기온은 전체 최저~최고 하나만 따로 붙인다 (카드 높이를 거의 늘리지 않으려는 구성).
+// 예보가 아직 없는 날(10일 밖·이미 지난 날)은 작은 점으로 두어 여행 일수와 칸 수가 맞게 한다.
+function WeatherStrip({ weather }: { weather: TripWeather }) {
+  const label = weather.days
+    .map((c, i) => `${i + 1}일차 ${c ? WEATHER_META[c].label : '예보 없음'}`)
+    .join(', ');
+  return (
+    <View style={styles.weatherRow} accessible accessibilityLabel={`날씨 예보: ${label}, 기온 ${weather.tMin}도에서 ${weather.tMax}도`}>
+      {/* 아이콘은 왼쪽에서 이어 붙이고(길면 줄바꿈), 기온은 항상 오른쪽 끝에 고정한다 */}
+      <View style={styles.weatherIcons}>
+        {weather.days.map((c, i) =>
+          c ? (
+            <Ionicons key={i} name={WEATHER_META[c].icon} size={weather.days.length > 7 ? 14 : 15} color={WEATHER_META[c].color} />
+          ) : (
+            <View key={i} style={styles.noForecastDot} />
+          ),
+        )}
+      </View>
+      <Text style={styles.weatherTemp}>{weather.tMin}°~{weather.tMax}°</Text>
+    </View>
+  );
+}
+
 function formatDays(days: number) {
   if (days <= 1) return '당일치기';
   return `${days - 1}박${days}일`;
@@ -50,10 +76,17 @@ function formatDays(days: number) {
 export default function SavedListScreen() {
   const navigation = useNavigation<Nav>();
   const [schedules, setSchedules] = useState<TripSchedule[]>([]);
+  // 10일 예보 (한 번만 받아 모든 카드가 공유). 실패·임시 데이터면 비워 두어 날씨 줄을 숨긴다.
+  const [forecast, setForecast] = useState<WeatherDay[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       loadAllSchedules().then(setSchedules);
+      let cancelled = false;
+      fetchWeatherForecastCached()
+        .then(f => { if (!cancelled) setForecast(f.isMock ? [] : f.days); })
+        .catch(() => { if (!cancelled) setForecast([]); });
+      return () => { cancelled = true; };
     }, [])
   );
 
@@ -99,6 +132,7 @@ export default function SavedListScreen() {
   const renderCard = ({ item, index }: { item: TripSchedule; index: number }) => {
     const thumbIcon = THUMB_ICONS[index % THUMB_ICONS.length];
     const range = formatTripRange(item.startDate, item.days);
+    const weather = tripWeather(item.startDate, item.days, forecast);
 
     const tags = [
       ...item.settings.themes.map(t => THEME_LABEL[t] ?? t),
@@ -142,6 +176,7 @@ export default function SavedListScreen() {
               <Text style={styles.rangeUnset}>여행 날짜 미정</Text>
             </View>
           )}
+          {weather && <WeatherStrip weather={weather} />}
           <View style={styles.tagRow}>
             {tags.map(tag => (
               <View key={tag} style={styles.tagChip}>
@@ -290,6 +325,10 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 3 },
   rangeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 8 },
+  weatherRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: -2, marginBottom: 8 },
+  weatherIcons: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 3 },
+  noForecastDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.border, marginHorizontal: 5 },
+  weatherTemp: { fontSize: 11, fontWeight: '600', color: colors.textMuted, flexShrink: 0 },
   rangeText: { fontSize: 12, fontWeight: '700', color: colors.primary },
   rangeUnset: { fontSize: 12, color: colors.textMuted },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },

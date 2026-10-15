@@ -179,3 +179,32 @@ export async function fetchWeatherForecast(): Promise<WeatherForecast> {
     return { days: buildMockForecast(), isMock: true };
   }
 }
+
+// ─────────────────────────────────────────────────
+// 저장 목록처럼 화면을 열 때마다 불러오는 곳을 위한 캐시 버전
+// ─────────────────────────────────────────────────
+
+const FORECAST_TTL_MS = 30 * 60 * 1000; // 예보는 하루 단위라 30분 캐시로 충분하고, 무료 API 호출도 아낀다
+let forecastCache: { at: number; value: WeatherForecast } | null = null;
+let forecastInFlight: Promise<WeatherForecast> | null = null;
+
+// 실제 예보(isMock이 아닌 것)만 캐시한다. 실패는 캐시하지 않아 다음 호출에서 다시 시도한다.
+// 동시에 여러 번 불러도 요청은 한 번만 나간다. 호출부는 isMock이면 날씨를 보여주지 말 것.
+export async function fetchWeatherForecastCached(now: number = Date.now()): Promise<WeatherForecast> {
+  if (forecastCache && now - forecastCache.at < FORECAST_TTL_MS) return forecastCache.value;
+  if (!forecastInFlight) {
+    forecastInFlight = fetchWeatherForecast()
+      .then(value => {
+        if (!value.isMock) forecastCache = { at: now, value };
+        return value;
+      })
+      .finally(() => { forecastInFlight = null; });
+  }
+  return forecastInFlight;
+}
+
+// 테스트에서 캐시를 비우는 용도
+export function resetForecastCache(): void {
+  forecastCache = null;
+  forecastInFlight = null;
+}

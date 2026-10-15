@@ -16,7 +16,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, TripSchedule } from '../types';
 import { colors, spacing, radius, shadows } from '../constants/theme';
-import { fetchWeatherForecast, WeatherDay, SkyCondition } from '../api/weatherApi';
+import { fetchWeatherForecast, WeatherDay } from '../api/weatherApi';
+import { WEATHER_META } from '../constants/weatherMeta';
 import { planTrip } from '../algorithms/planTrip';
 import { saveSchedule } from '../storage/scheduleStorage';
 import StateView from '../components/StateView';
@@ -26,16 +27,6 @@ import { addDays, addYears, startOfDay, toYyyymmdd } from '../utils/calendar';
 type Nav = StackNavigationProp<RootStackParamList, 'Weather'>;
 type Route = RouteProp<RootStackParamList, 'Weather'>;
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
-
-const WEATHER_META: Record<
-  SkyCondition,
-  { icon: IoniconsName; label: string; color: string; bg: string }
-> = {
-  sunny: { icon: 'sunny',        label: '맑음', color: '#F59E0B', bg: '#FFFBEB' },
-  cloudy: { icon: 'partly-sunny', label: '구름', color: '#64748B', bg: '#F1F5F9' },
-  rainy:  { icon: 'rainy',        label: '비',   color: '#3B82F6', bg: '#EFF6FF' },
-  snowy:  { icon: 'snow',         label: '눈',   color: '#93C5FD', bg: '#F0F9FF' },
-};
 
 const DAY_KR = ['일', '월', '화', '수', '목', '금', '토'];
 
