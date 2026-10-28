@@ -14,6 +14,7 @@ import {
   saveSchedule,
   loadAllSchedules,
   deleteSchedule,
+  deleteSchedules,
   loadScheduleById,
   renameSchedule,
 } from '../scheduleStorage';
@@ -69,6 +70,24 @@ describe('scheduleStorage', () => {
     await deleteSchedule('a');
     const all = await loadAllSchedules();
     expect(all.map(s => s.id)).toEqual(['b']);
+  });
+
+  it('deleteSchedules는 고른 id들만 한 번에 제거하고 순서는 유지', async () => {
+    await saveSchedule(make('a', 'A'));
+    await saveSchedule(make('b', 'B'));
+    await saveSchedule(make('c', 'C'));
+    await saveSchedule(make('d', 'D'));
+    await deleteSchedules(['a', 'c', '없는-id']);
+    const all = await loadAllSchedules();
+    expect(all.map(s => s.id)).toEqual(['d', 'b']);
+  });
+
+  it('deleteSchedules에 빈 배열을 주면 아무것도 쓰지 않는다', async () => {
+    await saveSchedule(make('a', 'A'));
+    (AsyncStorage.setItem as jest.Mock).mockClear();
+    await deleteSchedules([]);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+    expect((await loadAllSchedules()).map(s => s.id)).toEqual(['a']);
   });
 
   it('저장 데이터가 손상돼도 빈 배열로 안전 폴백', async () => {

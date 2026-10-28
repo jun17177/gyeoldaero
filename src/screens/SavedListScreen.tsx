@@ -16,7 +16,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import WaveLogo from '../components/WaveLogo';
 import { RootStackParamList, TripSchedule } from '../types';
-import { loadAllSchedules, deleteSchedule, renameSchedule } from '../storage/scheduleStorage';
+import { loadAllSchedules, deleteSchedule, deleteSchedules, renameSchedule } from '../storage/scheduleStorage';
 import { colors, spacing, radius, shadows, fonts } from '../constants/theme';
 import { formatTripRange } from '../utils/date';
 import { fetchWeatherForecastCached, WeatherDay } from '../api/weatherApi';
@@ -110,6 +110,51 @@ export default function SavedListScreen() {
     setSchedules(await loadAllSchedules());
   };
 
+  // 선택 모드 — 여러 일정을 골라 한 번에 지운다. 카드를 길게 눌러 하나만 지우는 방식도 그대로 둔다.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = schedules.length > 0 && selectedIds.size === schedules.length;
+
+  const toggleSelectAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(schedules.map(s => s.id)));
+  };
+
+  const handleDeleteSelected = () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    Alert.alert(
+      '일정 삭제',
+      `선택한 ${ids.length}개 일정을 삭제할까요? 되돌릴 수 없어요.`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteSchedules(ids);
+            const left = await loadAllSchedules();
+            setSchedules(left);
+            exitSelectMode();
+          },
+        },
+      ],
+    );
+  };
+
   // 카드 길게 누르면 삭제 (확인 후)
   const handleDelete = (item: TripSchedule) => {
     Alert.alert(
@@ -141,13 +186,21 @@ export default function SavedListScreen() {
       item.settings.season === 'fall'   ? '가을' : '겨울',
     ].slice(0, 3);
 
+    const selected = selectedIds.has(item.id);
+
     return (
       <TouchableOpacity
-        style={styles.card}
-        onPress={() => navigation.navigate('SavedDetail', { schedule: item })}
-        onLongPress={() => handleDelete(item)}
+        style={[styles.card, selectMode && selected && styles.cardSelected]}
+        onPress={() => (selectMode ? toggleSelected(item.id) : navigation.navigate('SavedDetail', { schedule: item }))}
+        onLongPress={selectMode ? undefined : () => handleDelete(item)}
         activeOpacity={0.85}
+        accessibilityState={selectMode ? { checked: selected } : undefined}
       >
+        {selectMode && (
+          <View style={[styles.checkCircle, selected && styles.checkCircleOn]}>
+            {selected && <Ionicons name="checkmark" size={15} color="#fff" />}
+          </View>
+        )}
         <View style={styles.thumbnailWrap}>
           <View style={styles.thumbnail}>
             <Ionicons name={thumbIcon} size={26} color={colors.primary} />
@@ -185,15 +238,19 @@ export default function SavedListScreen() {
             ))}
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.renameBtn}
-          onPress={() => openRename(item)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityLabel={`${item.name} 이름 수정`}
-        >
-          <Ionicons name="create-outline" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-        <Text style={styles.arrow}>›</Text>
+        {!selectMode && (
+          <>
+            <TouchableOpacity
+              style={styles.renameBtn}
+              onPress={() => openRename(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={`${item.name} 이름 수정`}
+            >
+              <Ionicons name="create-outline" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+            <Text style={styles.arrow}>›</Text>
+          </>
+        )}
       </TouchableOpacity>
     );
   };
@@ -204,10 +261,31 @@ export default function SavedListScreen() {
 
       {schedules.length > 0 ? (
         <>
-          <Text style={styles.title}>저장된 일정</Text>
-          <Text style={styles.deleteHint}>연필 아이콘으로 이름을 바꾸고, 카드를 길게 누르면 삭제할 수 있어요</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.titleInRow}>저장된 일정</Text>
+            {selectMode ? (
+              <View style={styles.headerActions}>
+                <TouchableOpacity onPress={toggleSelectAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.headerBtnText}>{allSelected ? '전체 해제' : '전체 선택'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={exitSelectMode} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.headerBtnText}>취소</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => setSelectMode(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.headerBtnText}>선택</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.deleteHint}>
+            {selectMode
+              ? '지울 일정을 눌러 고르세요'
+              : '연필 아이콘으로 이름을 바꾸고, 카드를 길게 누르면 삭제할 수 있어요. 여러 개는 오른쪽 위 "선택"으로 지워요'}
+          </Text>
           <FlatList
             data={schedules}
+            extraData={[selectMode, selectedIds]}
             keyExtractor={item => item.id}
             renderItem={renderCard}
             contentContainerStyle={styles.list}
@@ -259,13 +337,26 @@ export default function SavedListScreen() {
       </Modal>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => navigation.navigate('Home')}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.primaryButtonText}>새로운 여행 시작하기</Text>
-        </TouchableOpacity>
+        {selectMode ? (
+          <TouchableOpacity
+            style={[styles.primaryButton, styles.dangerButton, selectedIds.size === 0 && styles.buttonDisabled]}
+            onPress={handleDeleteSelected}
+            disabled={selectedIds.size === 0}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.primaryButtonText}>
+              {selectedIds.size === 0 ? '삭제할 일정을 선택하세요' : `${selectedIds.size}개 삭제`}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => navigation.navigate('Home')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.primaryButtonText}>새로운 여행 시작하기</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -281,6 +372,31 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  titleInRow: { fontFamily: fonts.serifBold, fontSize: 26, color: colors.text },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  headerBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  cardSelected: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  checkCircleOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dangerButton: { backgroundColor: colors.danger },
+  buttonDisabled: { opacity: 0.4 },
   deleteHint: {
     fontSize: 11,
     color: colors.textMuted,
