@@ -17,7 +17,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import WaveLogo from '../components/WaveLogo';
 import { RootStackParamList, TripSchedule } from '../types';
 import { loadAllSchedules, deleteSchedule, deleteSchedules, renameSchedule } from '../storage/scheduleStorage';
-import { colors, spacing, radius, shadows, fonts } from '../constants/theme';
+import { colors, spacing, radius, shadows } from '../constants/theme';
 import { formatTripRange } from '../utils/date';
 import { fetchWeatherForecastCached, WeatherDay } from '../api/weatherApi';
 import { WEATHER_META } from '../constants/weatherMeta';
@@ -265,16 +265,17 @@ export default function SavedListScreen() {
             <Text style={styles.titleInRow}>저장된 일정</Text>
             {selectMode ? (
               <View style={styles.headerActions}>
-                <TouchableOpacity onPress={toggleSelectAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={styles.headerBtnText}>{allSelected ? '전체 해제' : '전체 선택'}</Text>
+                <TouchableOpacity style={styles.pillOutline} onPress={toggleSelectAll} activeOpacity={0.8}>
+                  <Text style={styles.pillOutlineText}>{allSelected ? '전체 해제' : '전체 선택'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={exitSelectMode} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={styles.headerBtnText}>취소</Text>
+                <TouchableOpacity style={styles.pillOutline} onPress={exitSelectMode} activeOpacity={0.8}>
+                  <Text style={styles.pillOutlineText}>취소</Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity onPress={() => setSelectMode(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.headerBtnText}>선택</Text>
+              <TouchableOpacity style={styles.pillFilled} onPress={() => setSelectMode(true)} activeOpacity={0.8}>
+                <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+                <Text style={styles.pillFilledText}>선택</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -365,8 +366,8 @@ export default function SavedListScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   title: {
-    fontFamily: fonts.serifBold,
-    fontSize: 26, // 스펙: Noto Serif KR Bold 26px
+    fontSize: 26,
+    fontWeight: '700', // 다른 화면 제목과 같은 고딕 굵게 (명조는 로고·홈 문구 같은 브랜드 포인트에만)
     color: colors.text,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
@@ -380,9 +381,29 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
-  titleInRow: { fontFamily: fonts.serifBold, fontSize: 26, color: colors.text },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  headerBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  titleInRow: { fontSize: 26, fontWeight: '700', color: colors.text },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  pillFilled: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+  },
+  pillFilledText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  pillOutline: {
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillOutlineText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
   cardSelected: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
   checkCircle: {
     width: 24,

@@ -18,7 +18,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, DayPlan, TimelineItem, Spot } from '../types';
 import { findSpotOf } from '../utils/findSpot';
-import { colors, spacing, radius, shadows, fonts } from '../constants/theme';
+import { colors, spacing, radius, shadows } from '../constants/theme';
 import { ACCOMMODATION_LABEL } from '../constants/accommodations';
 import { generateTimeline } from '../algorithms/generateTimeline';
 import { deleteSchedule } from '../storage/scheduleStorage';
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     fontSize: 18,
-    fontFamily: fonts.serifBold,
+    fontWeight: '700',
     color: colors.text,
     textAlign: 'center',
   },
