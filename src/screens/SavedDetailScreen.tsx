@@ -180,7 +180,7 @@ export default function SavedDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <StatusBar barStyle="dark-content" />
 
       {/* 헤더 */}
       <View style={styles.header}>

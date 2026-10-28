@@ -20,7 +20,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <StatusBar barStyle="dark-content" />
       <View style={styles.inner}>
         <View style={styles.header}>
           <WaveLogo variant="primary" scale={0.38} />

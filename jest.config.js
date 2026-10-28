@@ -13,6 +13,7 @@ module.exports = {
       // 화면·컴포넌트 렌더 — Expo 런타임이 필요하다. 파일명 *.test.tsx
       displayName: 'ui',
       preset: 'jest-expo',
+      setupFiles: ['<rootDir>/jest.setup.ui.js'],
       roots: ['<rootDir>/src'],
       testMatch: ['**/__tests__/**/*.test.tsx'],
     },

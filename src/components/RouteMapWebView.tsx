@@ -151,7 +151,7 @@ function buildHtml(
 }
 
 export default function RouteMapWebView({ points, routePath }: Props) {
-  const webRef = useRef<WebView>(null);
+  const webRef = useRef<WebView<object>>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   const html = useMemo(
@@ -197,7 +197,7 @@ export default function RouteMapWebView({ points, routePath }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <WebView
+      <WebView<object>
         ref={webRef}
         originWhitelist={['*']}
         source={{ html, baseUrl: 'https://localhost' }}

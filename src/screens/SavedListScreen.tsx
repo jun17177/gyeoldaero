@@ -200,7 +200,7 @@ export default function SavedListScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <StatusBar barStyle="dark-content" />
 
       {schedules.length > 0 ? (
         <>

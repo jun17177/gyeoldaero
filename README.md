@@ -165,7 +165,7 @@ gyeoldaero/
 
 | 분류 | 기술 |
 |------|------|
-| 프레임워크 | React Native 0.86 + Expo SDK 57 (React 19) |
+| 프레임워크 | React Native 0.88 + Expo SDK 58 (React 19) |
 | 언어 | TypeScript 6 |
 | 네비게이션 | React Navigation v7 (Stack) |
 | 로컬 저장 | AsyncStorage |

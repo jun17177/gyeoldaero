@@ -19,7 +19,7 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#3D5A73" />
+      <StatusBar barStyle="light-content" />
       <View style={styles.center}>
         <WaveLogo variant="white" scale={0.95} />
         <View style={styles.sloganBox}>

@@ -426,7 +426,7 @@ export default function SpotSelectScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <StatusBar barStyle="dark-content" />
       {/* 숙소 주소 입력 시 키보드가 하단 패널을 가리지 않도록 밀어올린다 */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}

@@ -80,7 +80,7 @@ export default function BusinessHoursScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      <StatusBar barStyle="light-content" />
 
       {/* 헤더 */}
       <View style={styles.heroHeader}>
